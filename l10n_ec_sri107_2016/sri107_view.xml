@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+	<data>
+		
+		<menuitem id="menu_sri" parent="hr.menu_hr_root" name="SRI"/>
+		
+		<record id="action_sri2016_107_general" model="ir.actions.act_window">
+			<field name="name">SRI 2016 - Formulario 107 General</field>
+			<field name="res_model">sri2016.107.general</field>
+			<field name="view_type">form</field>
+			<field name="view_mode">tree,form</field>
+		</record>
+		
+		<record id="view_sri2016_107_general_form" model="ir.ui.view">
+			<field name="name">SRI 2016 - Formulario 107 General</field>
+			<field name="model">sri2016.107.general</field>
+			<field name="type">form</field>
+			<field name="arch" type="xml">
+				<form string="SRI 2016 - Formulario 107 General">
+					<header>
+						<!--button name="recalcular" string="Recalcular Formularios" type="object" icon="gtk-ok"/-->
+						<button name="crear_lineas" string="Crear Formularios" type="object" icon="gtk-ok"/>
+						<field name="state" widget="statusbar"/>
+					</header>
+					<sheet>
+						<group>
+							<group>
+								<field name="name"/>
+								<field name="date_start"/>
+								<field name="date_end"/>
+							</group>
+							<group>
+								<field name="archivo_rdep" filename="name_rdep"/>
+								<field name="name_rdep" invisible="1"/>
+							</group>
+						</group>
+						<field name="line_ids" nolabel="1"/>
+					</sheet>
+				</form>
+			</field>
+		</record>
+		
+		<record id="view_sri2016_107_general_tree" model="ir.ui.view">
+			<field name="name">SRI 2016 - Formulario 107 General</field>
+			<field name="model">sri2016.107.general</field>
+			<field name="type">tree</field>
+			<field name="arch" type="xml">
+				<tree string="SRI 2016 - Formulario 107 General">
+					<field name="name"/>
+					<field name="date_start"/>
+					<field name="date_end"/>
+					<field name="state"/>
+				</tree>
+			</field>
+		</record>
+		
+		<menuitem id="menu_sri2016_107_general" parent="menu_sri" name="SRI 2016 - 107 General" action="action_sri2016_107_general"/>
+		
+		<record id="action_sri_107_individual" model="ir.actions.act_window">
+			<field name="name">SRI 2016 - Formulario 107</field>
+			<field name="res_model">sri2016.107.individual</field>
+			<field name="view_type">form</field>
+			<field name="view_mode">tree,form</field>
+		</record>
+		
+		<record id="view_sri2016_107_tree" model="ir.ui.view">
+			<field name="name">SRI 2016 - Formulario 107</field>
+			<field name="model">sri2016.107.individual</field>
+			<field name="type">tree</field>
+			<field name="arch" type="xml">
+				<tree string="SRI 2016 - Formulario 107">
+					<field name="codigo"/>
+					<field name="name"/>
+					<field name="field_102"/>
+					<field name="field_202"/>
+					<field name="field_103"/>
+					<field name="state"/>
+				</tree>
+			</field>
+		</record>
+		
+		<record id="view_sri2016_107_search" model="ir.ui.view">
+			<field name="name">SRI 2016 - Formulario 107</field>
+			<field name="model">sri2016.107.individual</field>
+			<field name="type">search</field>
+			<field name="arch" type="xml">
+				<search string="SRI 2016 - Formulario 107">
+					<group>
+                		<field name="name"/>
+                		<field name="codigo"/>
+                		<field name="field_202"/>
+                		<field name="field_102"/>
+                		<field name="field_103"/>
+                		<field name="state"/>
+                	</group>
+                	<group string="Agrupar por...">
+                		<filter name="group_employee" string="Empleado" icon="terp-personal" context="{'group_by':'field_202'}"/>
+                		<filter name="group_fiscal" string="Ejercicio Fiscal" icon="terp-partner" context="{'group_by':'field_102'}"/>
+                		<filter name="group_state" string="Estado" icon="terp-stock_symbol-selection" context="{'group_by':'state'}"/>
+                	</group>
+                </search>
+			</field>
+		</record>
+		
+		<record id="view_sri2016_107_form" model="ir.ui.view">
+			<field name="name">SRI 2016 - Formulario 107</field>
+			<field name="model">sri2016.107.individual</field>
+			<field name="type">form</field>
+			<field name="arch" type="xml">
+				<form string="SRI 2016 - Formulario 107">
+					<header>
+						<button name="calcular_formulario" string="Calcular" icon="gtk-ok" type="object" colspan="1" states="draft"/>
+						<button name="exportar_formulario" string="Exportar" icon="gtk-save" type="object" colspan="1" states="draft"/>
+						<field name="state" widget="statusbar"/>
+					</header>
+					<sheet>
+						<group>
+							<field name="name" readonly="1"/>
+							<field name="codigo" readonly="1"/>
+							<field name="archivo" filename="name"/>
+							<separator string="Identificación del empleado contribuyente"/>
+							<newline/>
+							<field name="field_102" required="1" attrs="{'readonly':[('state','!=','draft')]}"/>
+							<field name="field_103" required="1"/>
+							<field name="field_201" readonly="1"/>
+							<field name="field_202" required="1" attrs="{'readonly':[('state','!=','draft')]}"/>
+							<separator string="Identificación del Empleador (Agente de Retención)"/>
+							<newline/>
+							<field name="field_105" readonly="1"/>
+							<field name="field_106" readonly="1"/>
+							<separator string="Liquidación del Impuesto" colspan="4"/>
+							<newline/>
+							<field name="field_301" readonly="1"/>
+							<field name="field_303" readonly="1"/>
+							<field name="field_305" readonly="1"/>
+							<field name="field_307" readonly="1"/>
+							<field name="field_311" readonly="1"/>
+							<field name="field_313" readonly="1"/>
+							<field name="field_315" readonly="1"/>
+							<field name="field_317" readonly="1"/>
+							<field name="field_349" readonly="1"/>
+							<field name="field_351" readonly="1"/>
+							<field name="field_353" readonly="1"/>
+							<field name="field_361" readonly="1"/>
+							<field name="field_363" readonly="1"/>
+							<field name="field_365" readonly="1"/>
+							<field name="field_367" readonly="1"/>
+							<field name="field_369" readonly="1"/>
+							<field name="field_371" readonly="1"/>
+							<field name="field_373" readonly="1"/>
+							<field name="field_381" readonly="1"/>
+							<field name="field_399" readonly="1"/>
+							<field name="field_401" readonly="1"/>
+							<field name="field_403" readonly="1"/>
+							<field name="field_405" readonly="1"/>
+							<field name="field_407" readonly="1"/>
+							<group colspan="4">
+								<field name="detalle" readonly="1"/>
+							</group>
+						</group>
+					</sheet>
+				</form>
+			</field>
+		</record>
+		
+		<menuitem id="menu_sri2016_107_individual" parent="menu_sri" name="SRI 2016 - 107 Individual" action="action_sri_107_individual"/>
+		
+		<!-- OTROS RUBROS 107 - 2016 -->
+
+		<record model="ir.ui.view" id="view_sri2016_107_employee_form">
+			<field name="name">hr.employee.sri2016.form</field>
+			<field name="model">hr.employee</field>
+			<field name="type">form</field>
+			<field name="inherit_id" ref="hr.view_employee_form"/>
+			<field name="arch" type="xml">
+				<data>
+					<xpath expr="/form/sheet/notebook" position="inside">
+						<page string="Otros Rubros 107">
+							<field name="rubros_ids" nolabel="1">
+								<tree editable="bottom" string="Detalle">
+									<field name="date"/>
+									<field name="name"/>
+									<field name="valor"/>
+									<field name="descripcion"/>
+								</tree>
+							</field>
+						</page>
+					</xpath>
+				</data>
+			</field>
+		</record>
+		
+		<record id="sri2016_salary_rule_form" model="ir.ui.view">
+            <field name="name">hr.salary.rule.form</field>
+            <field name="model">hr.salary.rule</field>
+            <field name="inherit_id" ref="l10n_ec_hr_payroll.l10n_ec_hr_salary_rule_form"/>
+            <field name="arch" type="xml">
+                <data>
+                    <field name="group_credit" position="after">
+                        <field name="sri2016_107"/>
+                    </field>
+                </data>
+            </field>
+        </record>
+    	
+    </data>
+</openerp>

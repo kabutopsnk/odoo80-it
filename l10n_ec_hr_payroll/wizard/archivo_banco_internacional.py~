@@ -1,0 +1,105 @@
+# -*- encoding: utf-8 -*-
+##############################################################################
+#
+#    OpenERP, Open Source Management Solution
+#    Copyright (C) 2011 OpenERP SA (<http://openerp.com>).
+#    Application developed by: Carlos Andrés Ordóñez P.
+#    Country: Ecuador
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+##############################################################################
+
+from openerp.osv import fields, osv
+from datetime import datetime
+from time import strftime
+import StringIO
+import base64
+
+class hr_italiana_bancointernacional(osv.osv_memory):
+    _name='hr.italiana.bancointernacional'
+    _description='Exportar archivo de rol a Banco Internacional'
+
+    _columns = {
+                'datas':fields.binary('Archivo Banco Internacional'),
+                'datas_fname':fields.char('Nombre de archivo', size=32),
+                'payroll_id': fields.many2one('hr.payslip.run','Rol'),
+                }
+    
+    def rol_padre(self, cr, uid, context={}):
+        return context.get('active_id')
+    
+    _defaults = {
+                 'payroll_id': rol_padre,
+                 }
+
+    def generar_archivo(self, cr, uid, ids, context={}):
+        for registro in self.browse(cr, uid, ids, context):
+          total=0
+          fecha=datetime.today()
+          fechau=strftime("%Y%m%d")
+          n_registros=0
+          #CUENTAS VIRTUALES
+          #for rol_individual in registro.payroll_id.slip_ids:
+          #  if rol_individual.employee_id.bank_account_id:
+          #    if rol_individual.employee_id.bank_account_id.state=='vir':
+          #      for rubro in rol_individual.line_ids:
+          #        if rubro.code=='NET' and rubro.total>0:
+          #          total+=rubro.total
+          #          n_registros+=1
+          #n_reg='%05d'%n_registros
+          #str_val=(('%.2f'%total).replace('.','')).rjust(15,'0')
+          #cabecera=self.pool.get('res.company').browse(cr, uid, 1).cabecera_banco+str_val+fechau+n_reg+"\n"
+          #codigo_empresa=self.pool.get('res.company').browse(cr, uid, 1).codigo1
+          #codigo_empresa2=self.pool.get('res.company').browse(cr, uid, 1).codigo2
+          buf = StringIO.StringIO()
+          #buf.write(cabecera.upper())
+          for rol_individual in registro.payroll_id.slip_ids:
+            if rol_individual.employee_id.bank_id and rol_individual.employee_id.bank_account_type and rol_individual.employee_id.bank_account_id:
+              if rol_individual.employee_id.bank_id.bic=='00003':
+                for rubro in rol_individual.line_ids:
+                  if rubro.category_id.code=='NET' and rubro.total>0:
+                    cedula=rol_individual.employee_id.name
+                    nombre_empleado=rol_individual.employee_id.name_related
+                    monto=rubro.total
+                    monto_str=(("%.2f"%monto).replace(".",'')).rjust(13,'0')
+                    tipo='C' #Cedula
+                    tipo_cuenta=rol_individual.employee_id.bank_account_type.code
+                    transaccion='PA' #Pago
+                    nombre_empleado = nombre_empleado
+                    #final_telefono = '                                            000000000'
+                    detalle = transaccion + '\t' + registro.payroll_id.name[:20] + '\t' + 'USD' + '\t' + monto_str + '\t' + 'CTA' + '\t' + tipo_cuenta + '\t' + rol_individual.employee_id.bank_account_id + '\t' + registro.payroll_id.name + '\t' + tipo + '\t' + cedula + '\t' + nombre_empleado + '\t' + '32'+ '\n'
+                    #detalle = transaccion + '\t' + tipo + '\t' + cedula + '\t' + cedula + '\t' + nombre_empleado + '\t' + tipo_cuenta + '\t' + rol_individual.employee_id.bank_account_id + '\t' + 'USD' + '\t' + monto_str + '\t' + '0035' + "\n"
+                    detalle = detalle.encode('utf-8')
+                    buf.write(detalle.upper())
+          out = base64.encodestring(buf.getvalue())
+          name = "%s%s.txt" % (str(registro.payroll_id.date_start), " BANCO INTERNACIONAL")
+          self.write(cr, uid, ids, {'datas': out, 'datas_fname': name})
+          #import pdb
+          #pdb.set_trace()
+          buf.close()
+          return {
+          'type': 'ir.actions.act_window',
+          'name': 'Archivo Banco Internacional',
+          'view_mode': 'form',
+          'view_id': False,
+          'view_type': 'form',
+          'res_model': 'hr.italiana.bancointernacional',
+          'res_id': registro.id,
+          'nodestroy': True,
+          'target': 'new',
+          'context': context,
+          }
+
+hr_italiana_bancointernacional()

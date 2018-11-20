@@ -1,0 +1,663 @@
+# -*- coding: utf-8 -*-
+##############################################################################
+#
+#    OpenERP, Open Source Management Solution
+#    Copyright (C) 2004-2010 Tiny SPRL (<http://tiny.be>).
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+##############################################################################
+
+from osv import fields, osv
+from time import strftime
+import time
+import datetime
+from dateutil.relativedelta import relativedelta
+from dateutil import parser
+import netsvc
+
+from tools.safe_eval import safe_eval as eval
+from gt_tool import fechas
+
+class gt_hr_holidays_status(osv.osv):
+    _inherit = "hr.holidays.status"
+    
+    _order = 'name asc'
+    
+    _columns = {
+                'code': fields.char('Codigo', size=15, help='Valor mediante el cual este tipo de ausencia será reconocido en las reglas salariales'),
+                'max': fields.integer('Maximo de dias', help='Valor maximo de dias de ausencia continuos que un empleado puede tomar por este tipo, si es 0 aplicara como indefinido')
+                }
+    
+    
+gt_hr_holidays_status()
+
+
+class holidays_period(osv.osv):
+    _name = 'holidays.period'
+    
+    _columns = {
+                'name': fields.char('Periodo', size=40),
+                'employee_id': fields.many2one('hr.employee', 'Empleado'),
+                'date_start': fields.date('Fecha inicial periodo'),
+                'date_stop': fields.date('Fecha final periodo'),
+                'days_normal': fields.float('Días de vacaciones'),
+                'days_extra': fields.float('Días adicionales de vacaciones'),
+                'days_prop_normal': fields.float('Días proporcionales'),
+                'days_prop_extra': fields.float('Días proporcionales adicionales'),
+                'tomados_normal': fields.float('Días ya tomados'),
+                'tomados_extra': fields.float('Días adicionales ya tomados'),
+                'asignacion_vacaciones_id' : fields.many2one('hr.holidays', 'Asignación de Vacaciones'),
+                }
+    
+    def create2(self, cr, uid, data, context=None):
+        obj_holidays = self.pool.get("hr.holidays")
+        #crear peticion de asignacion
+        holiday_id = obj_holidays.create(cr, uid, {'name': data['name'],
+                                                         'employee_id': data['employee_id'],
+                                                         'holiday_status_id': 1,
+                                                         'number_of_days_temp': data['days_normal'] + data['days_extra'],
+                                                         'holiday_type': 'employee',
+                                                         'type': 'add'})
+        data['asignacion_vacaciones_id'] = holiday_id
+        #validamos la asignacion de vacaciones
+        wf_service = netsvc.LocalService("workflow")
+        wf_service.trg_validate(uid, 'hr.holidays', holiday_id, 'confirm', cr)
+        wf_service.trg_validate(uid, 'hr.holidays', holiday_id, 'validate', cr)
+        #finalmente creamos la linea de vacaciones en el empleado, la cual está relacionada a la asignacion en la seccion de ausencias
+        new_id = super(holidays_period, self).create(cr, uid, data, context=context)
+        return new_id
+    
+    _defaults = {
+                 'days_normal': 0,
+                 'days_extra': 0,
+                 'days_prop_normal': 0,
+                 'days_prop_extra': 0,
+                 'tomados_normal': 0,
+                 'tomados_extra': 0,
+                 }
+    
+holidays_period()
+
+class hr_employee_holidays(osv.osv):
+    _inherit = 'hr.employee'
+    
+    def _vacaciones_tomadas(self, cr, uid, ids, field_name, arg, context=None):
+        result = {}
+        for this in self.browse(cr, uid, ids):
+            total = 0
+            for detalle_vacaciones in this.holidays_ids:
+                total += (detalle_vacaciones.tomados_normal + detalle_vacaciones.tomados_extra) 
+            result[this.id] = total
+        return result
+    
+    def _vacaciones_normal(self, cr, uid, ids, field_name, arg, context=None):
+        result = {}
+        for this in self.browse(cr, uid, ids):
+            total = 0
+            for detalle_vacaciones in this.holidays_ids:
+                total += detalle_vacaciones.days_normal
+                total -= detalle_vacaciones.tomados_normal
+            result[this.id] = total
+        return result
+    
+    def _vacaciones_extra(self, cr, uid, ids, field_name, arg, context=None):
+        result = {}
+        for this in self.browse(cr, uid, ids):
+            total = 0
+            for detalle_vacaciones in this.holidays_ids:
+                total += detalle_vacaciones.days_extra
+                total -= detalle_vacaciones.tomados_extra
+            result[this.id] = total
+        return result
+    
+    def _proporcional_normal(self, cr, uid, ids, field_name, arg, context=None):
+        result = {}
+        for this in self.browse(cr, uid, ids):
+            total = 0
+            for detalle_vacaciones in this.holidays_ids:
+                total += detalle_vacaciones.days_normal
+                total -= detalle_vacaciones.tomados_normal
+            result[this.id] = total
+        return result
+    
+    def _proporcional_extra(self, cr, uid, ids, field_name, arg, context=None):
+        result = {}
+        for this in self.browse(cr, uid, ids):
+            total = 0
+            for detalle_vacaciones in this.holidays_ids:
+                total += detalle_vacaciones.days_extra
+                total -= detalle_vacaciones.tomados_extra
+            result[this.id] = total
+        return result
+    
+    def _get_holidays(self, cr, uid, ids, context):
+        result = {}
+        for holiday in self.pool.get('holidays.period').browse(cr, uid, ids, context=context):
+            result[holiday.employee_id.id] = True
+        return result.keys()
+    
+    STORE_VACS = {'holidays.period': (_get_holidays,
+                                      ['days_normal','days_extra','tomados_normal','tomados_extra'], 10),
+                  }
+    
+    _columns = {
+                'holidays_ids': fields.one2many('holidays.period', 'employee_id', 'Detalle de Vacaciones'),
+                'total_normal': fields.function(_vacaciones_normal, method=True, string="Días disponibles", store=STORE_VACS, type="float"),
+                'total_extra': fields.function(_vacaciones_extra, method=True, string="Días adicionales disponibles", store=STORE_VACS, type="float"),
+                #'proporcional_normal': fields.function(_proporcional_normal, method=True, string="Proporcional", store=STORE_VACS, type="float"),
+                #'proporcional_extra': fields.function(_proporcional_extra, method=True, string="Proporcional adicionales", store=STORE_VACS, type="float"),
+                #'total_extra': fields.float('Total de dias adicionales'),
+                #'tomados': fields.function(_vacaciones_tomadas, method=True, string="Total de dias tomados", store=False, type="float"),
+                }
+    
+    
+    #def tarea_actualizar_vacaciones(self, cr, uid, ids, context=None):
+    def tarea_actualizar_vacaciones_2(self, cr, uid, context=None):
+        obj_configuration = self.pool.get('hr.base.configuration')
+        obj_contrato = self.pool.get('hr.contract')
+        obj_periodo = self.pool.get('holidays.period')
+        ids_contratos = obj_contrato.search(cr, uid, [('active','=',True)])
+        ids_configuration = obj_configuration.search(cr, uid, [('activo', '=', True)], limit=1, context=context)
+        if ids_configuration:
+            dias_vacaciones = obj_configuration.browse(cr, uid, ids_configuration[0], context).min_vacation 
+            #print dias_vacaciones
+            for contrato in obj_contrato.browse(cr, uid, ids_contratos, context):
+                time_contrato = datetime.datetime.strptime(contrato.date_start, "%Y-%m-%d")
+                time_actual = datetime.datetime.today()
+                resultado = time_actual - time_contrato
+                if resultado.days:
+                    if resultado.days>365:
+                        #print resultado.days%365.0
+                        if (resultado.days%365.0) == 0:
+                            periodo_inicio = datetime.datetime(year=time_contrato.year+(resultado.days//365)-1, month=time_contrato.month, day=time_contrato.day)
+                            periodo_inicio = periodo_inicio + datetime.timedelta(days=(-1))
+                            periodo_fin = datetime.datetime(year=time_contrato.year+(resultado.days//365), month=time_contrato.month, day=time_contrato.day)
+                            periodo_fin = periodo_fin + datetime.timedelta(days=(-1))
+                            ids_periodo = obj_periodo.search(cr, uid, [('employee_id','=',contrato.employee_id.id),
+                                                                       ('date_start','=',periodo_inicio),
+                                                                       ('date_stop','=',periodo_fin)])
+                            if not(ids_periodo):
+                                obj_periodo.create(cr, uid, {'name': 'Periodo: ' + str(periodo_inicio)[:10] + ' - ' + str(periodo_fin)[:10],
+                                                             'employee_id': contrato.employee_id.id,
+                                                             'date_start': periodo_inicio,
+                                                             'date_stop': periodo_fin,
+                                                             'days_normal': dias_vacaciones}, context)
+                    
+    def tarea_actualizar_vacaciones_20140317(self, cr, uid, context=None):
+        obj_contrato = self.pool.get('hr.contract')
+        obj_periodo = self.pool.get('holidays.period')
+        time_actual = datetime.datetime.today()
+        ids_contratos = obj_contrato.search(cr, uid, [('date_start','<=',str(time_actual)),
+                                                      '|',
+                                                      ('date_end','>=',str(time_actual)),
+                                                      ('date_end','=',False)])
+        #import pdb
+        #pdb.set_trace()
+        for contrato in obj_contrato.browse(cr, uid, ids_contratos, context):
+            time_contrato = datetime.datetime.strptime(contrato.continuidad_desde, "%Y-%m-%d")
+            localdict = {'employee': contrato.employee_id, 'contract': contrato, 'date_time': fechas}
+            dias_normales = 0
+            dias_adicionales = 0
+            prop_normales = 0
+            prop_adicionales = 0
+            try:
+                eval(contrato.type_id.formula_normales, localdict, mode='exec', nocopy=True)
+                dias_normales = localdict['result']
+                eval(contrato.type_id.formula_adicionales, localdict, mode='exec', nocopy=True)
+                dias_adicionales = localdict['result']
+            except:
+                raise osv.except_osv('Error de cómputo', 'Las expresiones python para el cómputo de vacaciones, es erroneo')
+            
+            periodo_fin = datetime.datetime(year=time_contrato.year+1, month=time_contrato.month, day=time_contrato.day)
+            periodo_fin = periodo_fin + datetime.timedelta(days=(-1))
+            while periodo_fin < time_actual:
+                periodo_fin = datetime.datetime(year=periodo_fin.year+1, month=periodo_fin.month, day=periodo_fin.day)
+                periodo_fin = periodo_fin + datetime.timedelta(days=(-1))
+            periodo_inicio = datetime.datetime(year=periodo_fin.year-1, month=periodo_fin.month, day=periodo_fin.day)
+            periodo_inicio = periodo_inicio + datetime.timedelta(days=(+1))
+            nombre = 'Periodo: ' + str(periodo_inicio)[:10] + ' - ' + str(periodo_fin)[:10]
+            print nombre
+            if periodo_fin.day == time_actual.day and periodo_fin.month == time_actual.month and periodo_fin.year == time_actual.year:
+                pass
+            else:
+                dias_proporcionales = (time_actual - periodo_inicio).days
+                prop_normales = (dias_normales*dias_proporcionales)/365.0
+                prop_adicionales = (dias_adicionales*dias_proporcionales)/365.0
+                dias_normales = 0
+                dias_adicionales = 0
+            ids_periodo = obj_periodo.search(cr, uid, [('name','=',nombre),
+                                                       ('employee_id','=',contrato.employee_id.id)])
+            if not ids_periodo:
+                ids_periodo = [obj_periodo.create(cr, uid, {'name': nombre,
+                                                            'employee_id': contrato.employee_id.id,
+                                                            'date_start': periodo_inicio,
+                                                            'date_stop': periodo_fin,})]
+            obj_periodo.write(cr, uid, ids_periodo, {'days_normal':dias_normales,
+                                                     'days_extra':dias_adicionales,
+                                                     'days_prop_normal':prop_normales,
+                                                     'days_prop_extra':prop_adicionales,
+                                                     })
+            
+    def boton_actualizar_vacaciones(self, cr, uid, ids, context=None):
+        obj_contrato = self.pool.get('hr.contract')
+        obj_periodo = self.pool.get('holidays.period')
+        time_actual = datetime.datetime.today()
+        ids_contratos = []
+        ids_contratos1 = obj_contrato.search(cr, uid, [('date_start','<=',str(time_actual)),('date_end','>=',str(time_actual))])
+        ids_contratos2 = obj_contrato.search(cr, uid, [('date_start','<=',str(time_actual)),('date_end','=',False)])
+        ids_contratos = ids_contratos1 + ids_contratos2
+        #import pdb
+        #pdb.set_trace()
+        cr.execute("delete from holidays_period")
+        for contrato in obj_contrato.browse(cr, uid, ids_contratos, context):
+            time_contrato = datetime.datetime.strptime(contrato.continuidad_desde, "%Y-%m-%d")
+            localdict = {'employee': contrato.employee_id, 'contract': contrato, 'date_time': fechas}
+            dias_normales = 0
+            dias_adicionales = 0
+            prop_normales = 0
+            prop_adicionales = 0
+            periodo_inicio = datetime.datetime(year=time_contrato.year, month=time_contrato.month, day=time_contrato.day)
+            periodo_fin = datetime.datetime(year=time_contrato.year+1, month=time_contrato.month, day=time_contrato.day)
+            periodo_fin = periodo_fin + datetime.timedelta(days=(-1))
+            while periodo_fin <= time_actual:
+                dias_normales = 0
+                dias_adicionales = 0
+                try:
+                    eval(contrato.type_id.formula_normales, localdict, mode='exec', nocopy=True)
+                    dias_normales = localdict['result']
+                    eval(contrato.type_id.formula_adicionales, localdict, mode='exec', nocopy=True)
+                    dias_adicionales = localdict['result']
+                except:
+                    raise osv.except_osv('Error de cómputo', 'Las expresiones python para el cómputo de vacaciones, es erroneo')
+                nombre = 'Periodo: ' + str(periodo_inicio)[:10] + ' - ' + str(periodo_fin)[:10]
+                ids_periodo = [obj_periodo.create(cr, uid, {'name': nombre,
+                                                            'employee_id': contrato.employee_id.id,
+                                                            'date_start': periodo_inicio,
+                                                            'date_stop': periodo_fin,
+                                                            'days_normal':dias_normales,
+                                                            'days_extra':dias_adicionales,
+                                                            'days_prop_normal':0,
+                                                            'days_prop_extra':0,})]
+                periodo_inicio = periodo_fin + datetime.timedelta(days=(+1))
+                periodo_fin = datetime.datetime(year=periodo_inicio.year+1, month=periodo_inicio.month, day=periodo_inicio.day)
+                periodo_fin = periodo_fin + datetime.timedelta(days=(-1))
+            if periodo_fin>time_actual:
+                nombre = 'Periodo: ' + str(periodo_inicio)[:10] + ' - ' + str(periodo_fin)[:10]
+                dias_proporcionales = (time_actual - periodo_inicio).days
+                prop_normales = (dias_normales*dias_proporcionales)/365.0
+                prop_adicionales = (dias_adicionales*dias_proporcionales)/365.0
+                ids_periodo = [obj_periodo.create(cr, uid, {'name': nombre,
+                                                            'employee_id': contrato.employee_id.id,
+                                                            'date_start': periodo_inicio,
+                                                            'date_stop': periodo_fin,
+                                                            'days_normal':0,
+                                                            'days_extra':0,
+                                                            'days_prop_normal':prop_normales,
+                                                            'days_prop_extra':prop_adicionales,})]
+        
+
+        
+    def tarea_actualizar_vacaciones_3(self, cr, uid, context=None):
+        obj_contrato = self.pool.get('hr.contract')
+        obj_periodo = self.pool.get('holidays.period')
+        time_actual = datetime.datetime.today()
+        ids_contratos = obj_contrato.search(cr, uid, [('date_start','<=',str(time_actual)),
+                                                      '|',
+                                                      ('date_end','>=',str(time_actual)),
+                                                      ('date_end','=',False)])
+        for contrato in obj_contrato.browse(cr, uid, ids_contratos, context):
+            print "en contratos"
+            time_contrato = datetime.datetime.strptime(contrato.continuidad_desde, "%Y-%m-%d")
+            
+            print "antes comparar fecha"
+            if time_contrato.day == time_actual.day and time_contrato.month == time_actual.month and time_actual.year > time_contrato.year:
+                print "despues comparar fecha"
+                localdict = {'employee': contrato.employee_id, 'contract': contrato, 'date_time': fechas}
+                try:
+                    eval(contrato.type_id.formula_normales, localdict, mode='exec', nocopy=True)
+                    dias_normales = localdict['result']
+                    eval(contrato.type_id.formula_adicionales, localdict, mode='exec', nocopy=True)
+                    dias_adicionales = localdict['result']
+                except:
+                    raise osv.except_osv('Error de computo', 'Las expresiones python para el computo de vacaciones, es erroneo')
+                resultado = time_actual - time_contrato
+                periodo_fin = datetime.datetime(year=time_actual.year, month=time_actual.month, day=time_actual.day)
+                periodo_inicio = datetime.datetime(year=time_actual.year-1, month=time_actual.month, day=time_actual.day)
+                periodo_fin = periodo_fin + datetime.timedelta(days=(-1))
+                obj_periodo.create(cr, uid, {'name': 'Periodo: ' + str(periodo_inicio)[:10] + ' - ' + str(periodo_fin)[:10],
+                                                     'employee_id': contrato.employee_id.id,
+                                                     'date_start': periodo_inicio,
+                                                     'date_stop': periodo_fin,
+                                                     'days_normal': dias_normales,
+                                                     'days_extra': dias_adicionales}, context)
+    
+    def compute_all_holidays_past(self, cr, uid, ids, context=None):
+        #actualiza las vacaciones de todos los empleados
+        val = 0
+        res = {}
+        FIXED_DAYS = 15
+        EXTRA_YEAR = 5
+        BASE_YEAR = 1
+        contract_obj = self.pool.get('hr.contract')
+        ids_empleados = self.search(cr, uid, [])
+        for emp in self.browse(cr, uid, ids_empleados, context):
+            res[emp.id] = {
+                'dias_vacaciones': 0,
+                'dias_vac_adi': 0,
+                'dias_disponibles': 0,
+                }
+            contract_ids = contract_obj.search(cr, uid, [('employee_id','=',emp.id),
+                                                         ('activo','=',True)], limit=1)
+            if contract_ids:
+                contrato = contract_obj.browse(cr, uid, contract_ids[0])
+                years=(datetime.today()-datetime.strptime(contrato.date_start,'%Y-%m-%d')).days/365
+                if years>=BASE_YEAR:
+                    res[emp.id]['dias_vacaciones'] = FIXED_DAYS or 0
+                else:
+                    res[emp.id]['dias_vacaciones'] = 0
+                res[emp.id]['dias_vac_adi'] = 0
+                if years>EXTRA_YEAR:
+                    res[emp.id]['dias_vac_adi'] = years-EXTRA_YEAR
+                if years>15:
+                    res[emp.id]['dias_vac_adi'] = 15
+                #res[emp.id]['dias_vac_adi'] = years>EXTRA_YEAR and years>15 and 15 or (years-EXTRA_YEAR) or 0
+                res[emp.id]['dias_disponibles'] = res[emp.id]['dias_vacaciones'] + res[emp.id]['dias_vac_adi'] + emp.dias_saldo - emp.dias_tomados - emp.dias_adelantado
+                self.write(cr, uid, emp.id, {'anios_laborados' : years,
+                                             'dias_disponibles' : res[emp.id]['dias_disponibles'],
+                                             'dias_vacaciones' : res[emp.id]['dias_vacaciones'],
+                                             'dias_vac_adi' : res[emp.id]['dias_vac_adi'],})
+        return True
+    
+hr_employee_holidays()
+
+class gt_hr_holidays(osv.osv):
+    _inherit = "hr.holidays"
+    
+    _columns = {
+                #'assistance_lines': fields.one2many('gt.hr.assistance.absence', 'holidays_id', 'Detalle de Asistencia'),
+                #'period_start': fields.date('Inicio de Periodo'),
+                #'period_stop': fields.date('Final de Periodo'),
+                'date_start' : fields.date('Fecha de inicio de la ausencia'),
+                'tipo_vacaciones': fields.selection([('normal','Normales'),('extra','Adicionales')],'Descontar de', help='Indicar de que tipo de vacaciones se descontara los dias indicados'),
+                'state': fields.selection([('draft', 'Borrador'),
+                                           ('confirm', 'Esperando Aprobación'),
+                                           ('refuse', 'Rechazado'),
+                                           ('validate1', 'Esperando Segunda Aprobación'),
+                                           ('validate', 'Aprobado'),
+                                           ('cancel', 'Cancelado')],'Estado', readonly=True),
+                }
+    
+    _defaults = {
+                 'name':'Ausencia'
+                 }
+    
+    def onchange_date_from(self, cr, uid, ids, date_to, date_from):
+        result = {}
+        if date_to and date_from:
+            diff_day = self._get_number_of_days(date_from, date_to)
+            result['value'] = {
+                'number_of_days_temp': diff_day
+            }
+            return result
+        result['value'] = {
+            'number_of_days_temp': 0,
+        }
+        return result
+    
+    def create2(self, cr, uid, data, context=None):
+        obj_holidays_period = self.pool.get("holidays.period")
+        holiday_period_id = obj_holidays_period.create(self, cr, uid, {})
+        user_id = super(gt_hr_holidays, self).create(cr, uid, data, context=context)
+
+        # add shortcut unless 'noshortcut' is True in context
+        if not(context and context.get('noshortcut', False)):
+            data_obj = self.pool.get('ir.model.data')
+            try:
+                data_id = data_obj._get_id(cr, uid, 'hr', 'ir_ui_view_sc_employee')
+                view_id  = data_obj.browse(cr, uid, data_id, context=context).res_id
+                self.pool.get('ir.ui.view_sc').copy(cr, uid, view_id, default = {
+                                            'user_id': user_id}, context=context)
+            except:
+                # Tolerate a missing shortcut. See product/product.py for similar code.
+                logging.getLogger('orm').debug('Skipped meetings shortcut for user "%s"', data.get('name','<new'))
+
+        return user_id
+    
+    def reducir_vacaciones(self, cr, uid, ids, context=None):
+        total_dias = 0
+        obj_period = self.pool.get('holidays.period')
+        for registro in self.browse(cr, uid, ids, context):
+            total_dias = abs(registro.number_of_days)
+            if registro.holiday_status_id.id == 1 and registro.type == "remove":
+                aux_periodo = False
+                for periodo in registro.employee_id.holidays_ids:
+                    aux_periodo = periodo
+                    if registro.tipo_vacaciones=='normal':
+                        if periodo.days_normal > periodo.tomados_normal:
+                            if total_dias > (periodo.days_normal - periodo.tomados_normal):
+                                total_dias = total_dias - (periodo.days_normal - periodo.tomados_normal)
+                                obj_period.write(cr, uid, periodo.id, {'tomados_normal':periodo.days_normal})
+                            else:
+                                obj_period.write(cr, uid, periodo.id, {'tomados_normal':periodo.tomados_normal+total_dias})
+                                total_dias = 0
+                                return True
+                    if registro.tipo_vacaciones=='extra':
+                        if periodo.days_extra > periodo.tomados_extra:
+                            if total_dias > (periodo.days_extra - periodo.tomados_extra):
+                                total_dias = total_dias - (periodo.days_extra - periodo.tomados_extra)
+                                obj_period.write(cr, uid, periodo.id, {'tomados_extra':periodo.days_extra})
+                            else:
+                                obj_period.write(cr, uid, periodo.id, {'tomados_extra':periodo.tomados_extra+total_dias})
+                                total_dias = 0
+                                return True
+                ultimo_id = 0
+                if not registro.employee_id.holidays_ids:
+                    ultimo_id = obj_period.create(cr, uid, {'name':'Carga Inicial',
+                                                            'date_start': registro.employee_id.contract_id.date_start,
+                                                            'date_stop': registro.employee_id.contract_id.date_start,}, context)
+                else:
+                    ultimo_id = aux_periodo.id
+                if total_dias>0:
+                    periodo = obj_period.browse(cr, uid, ultimo_id, context)
+                    if registro.tipo_vacaciones=='normal':
+                        obj_period.write(cr, uid, ultimo_id, {'tomados_normal':periodo.tomados_normal + total_dias})
+                    if registro.tipo_vacaciones=='extra':
+                        obj_period.write(cr, uid, ultimo_id, {'tomados_extra':periodo.tomados_extra + total_dias})
+                    return True
+        return False
+    
+    def holidays_validate2(self, cr, uid, ids, context=None):
+        self.check_holidays(cr, uid, ids, context=context)
+        obj_emp = self.pool.get('hr.employee')
+        ids2 = obj_emp.search(cr, uid, [('user_id', '=', uid)])
+        manager = ids2 and ids2[0] or False
+        self.write(cr, uid, ids, {'state':'validate'})
+        data_holiday = self.browse(cr, uid, ids)
+        holiday_ids = []
+        for record in data_holiday:
+            if record.holiday_status_id.double_validation:
+                holiday_ids.append(record.id)
+            if record.holiday_type == 'employee' and record.type == 'remove':
+                meeting_obj = self.pool.get('crm.meeting')
+                vals = {
+                    'name': record.name,
+                    'categ_id': record.holiday_status_id.categ_id.id,
+                    'duration': record.number_of_days_temp * 8,
+                    'description': record.notes,
+                    'user_id': record.user_id.id,
+                    'date': record.date_from,
+                    'end_date': record.date_to,
+                    'date_deadline': record.date_to,
+                }
+                case_id = meeting_obj.create(cr, uid, vals)
+                self._create_resource_leave(cr, uid, [record], context=context)
+                self.write(cr, uid, ids, {'case_id': case_id})
+            elif record.holiday_type == 'category':
+                emp_ids = obj_emp.search(cr, uid, [('category_ids', 'child_of', [record.category_id.id])])
+                leave_ids = []
+                for emp in obj_emp.browse(cr, uid, emp_ids):
+                    vals = {
+                        'name': record.name,
+                        'type': record.type,
+                        'holiday_type': 'employee',
+                        'holiday_status_id': record.holiday_status_id.id,
+                        'date_from': record.date_from,
+                        'date_to': record.date_to,
+                        'notes': record.notes,
+                        'number_of_days_temp': record.number_of_days_temp,
+                        'parent_id': record.id,
+                        'employee_id': emp.id
+                    }
+                    leave_ids.append(self.create(cr, uid, vals, context=None))
+                wf_service = netsvc.LocalService("workflow")
+                for leave_id in leave_ids:
+                    wf_service.trg_validate(uid, 'hr.holidays', leave_id, 'confirm', cr)
+                    wf_service.trg_validate(uid, 'hr.holidays', leave_id, 'validate', cr)
+                    wf_service.trg_validate(uid, 'hr.holidays', leave_id, 'second_validate', cr)
+        if holiday_ids:
+            self.write(cr, uid, holiday_ids, {'manager_id2': manager})
+        #reduccion de vacaciones de holidays.period
+        self.reducir_vacaciones(cr, uid, ids, context)
+        return True
+    
+    def _cantidad_maxima(self, cr, uid, ids, context=None):
+        obj = self.browse(cr, uid, ids[0], context=context)
+        if obj.holiday_status_id.max == 0:
+            return True
+        else:
+            if obj.holiday_status_id.max >= obj.number_of_days:
+                return True
+            else:
+                return False
+        return True
+    
+    _constraints = [
+                    (_cantidad_maxima, 'No puede superar el límite máximo de días por este motivo de ausencia', ['holiday_status_id','number_of_days']),
+                    ]
+    
+gt_hr_holidays()
+
+class viaticos_log(osv.osv):
+    _name = 'hr.doc.holidays.log'
+    _description = 'Historial en la solicitud de ausencias'
+    _order = 'fecha desc'
+    _columns = {
+                'name': fields.char('Descripción', size=128, required=True),
+                'user_id': fields.many2one('res.users','Usuario Responsable', required=True),
+                'fecha': fields.datetime('Fecha de creación', required=True),
+                'doc_holiday_id': fields.many2one('hr.doc.holidays', 'Viático'),
+                }
+    
+    _defaults = {
+                 'fecha': time.strftime('%Y-%m-%d %H:%M:%S'),
+                 }
+    
+viaticos_log()
+
+class gt_doc_holidays(osv.osv):
+    _name = 'hr.doc.holidays'
+    _description = 'Ausencias en la sección documental'
+
+    def _default_employee(self, cr, uid, context=None):
+        usuario = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        empleado = usuario.employee_id
+        return empleado.id
+
+    def create(self, cr, uid, values, context=None):
+        values['name'] = self.pool.get('ir.sequence').get(cr, uid, 'hr.doc.holidays')
+        if values.has_key('employee_id'):
+            empleado = self.pool.get('hr.employee').browse(cr, uid, values['employee_id'], context=context)
+            if empleado.user_id:
+                values['department_id'] = empleado.user_id.context_department_id.id
+            else:
+                values['department_id'] = empleado.department_id.id
+        return super(gt_doc_holidays, self).create(cr, uid, values, context=context)
+
+    def write(self, cr, uid, ids, values, context=None):
+
+        if values.has_key('employee_id'):
+            empleado = self.pool.get('hr.employee').browse(cr, uid, values['employee_id'], context=context)
+            if empleado.user_id:
+                values['department_id'] = empleado.user_id.context_department_id.id
+            else:
+                values['department_id'] = empleado.department_id.id
+        return super(gt_doc_holidays, self).write(cr, uid, ids, values, context=context)
+    
+    def unlink(self, cr, uid, ids, context=None):
+        for registro in self.browse(cr, uid, ids, context):
+            raise osv.except_osv('Error', 'No puede eliminar un registro')
+        return False
+    
+    _columns = {
+                'name': fields.char('Codigo Referencia', size=20),
+                'employee_id': fields.many2one('hr.employee','Empleado', required=True),
+                'department_id': fields.many2one('hr.department', 'Departamento'),
+                'tipo_id': fields.many2one('hr.holidays.status', 'Tipo de Ausencia', required=True),
+                'date_start' : fields.datetime('Inicio de la ausencia', required=True),
+                'date_stop' : fields.datetime('Fin de la ausencia', required=True),
+                'tipo_vacaciones': fields.selection([('normal','Normales'),('extra','Adicionales')],'Descontar de vacaciones?', help='Indicar de que tipo de vacaciones se descontara los dias indicados, en el caso que la ausencia se cargue a vacaciones'),
+                'state': fields.selection([('draft', 'Borrador'),
+                                           ('send', 'Enviado'),
+                                           ('confirm','Confirmado'),
+                                           ('validate','Validado'),
+                                           ('refuse', 'Rechazado'),
+                                           ('cancel', 'Anulado')],'Estado', readonly=True),
+                'holiday_id': fields.many2one('hr.holidays','Registro de Ausencia'),
+                'notes': fields.text('Razones'),
+                'logs': fields.one2many('hr.doc.holidays.log','doc_holiday_id','Historial'),
+                }
+    
+    _defaults = {
+                 'state':'draft',
+                 'employee_id': _default_employee,
+                 }
+
+    def _validar_fechas(self, cr, uid, ids, context=None):
+        obj = self.browse(cr, uid, ids[0], context=context)
+        if obj.date_start <= obj.date_stop:
+            return False
+        return True
+
+    _constraints = [
+                    (_validar_fechas, 'Las fechas deben estar colocadas correctamente', ['date_start','date_stop']),
+                    ]
+
+    def onchange_info_empleado(self, cr, uid, ids, employee_id, context=None):
+        if employee_id:
+            empleado = self.pool.get('hr.employee').browse(cr, uid, employee_id, context=context)
+            if empleado.user_id:
+                return {'value':{'department_id':empleado.user_id.context_department_id.id}}
+            else:
+                return {'value':{'department_id':empleado.department_id.id}}
+        return False
+    
+    def button_send(self, cr, uid, ids, context={}):
+        obj_log = self.pool.get('hr.doc.holidays.log')
+        obj_log.create(cr, uid, {'name': 'Registro de ausencia enviado','user_id': uid,'doc_holiday_id': ids[0],}, context=context)
+        return self.write(cr, uid, ids, {'state':'send'})
+
+    def button_confirm(self, cr, uid, ids, context={}):
+        obj_log = self.pool.get('hr.doc.holidays.log')
+        obj_log.create(cr, uid, {'name': 'Registro de ausencia aprobado por jefe superior','user_id': uid,'doc_holiday_id': ids[0],}, context=context)
+        return self.write(cr, uid, ids, {'state':'confirm'})
+
+
+    def button_validate(self, cr, uid, ids, context={}):
+        obj_log = self.pool.get('hr.doc.holidays.log')
+        obj_log.create(cr, uid, {'name': 'Registro de ausencia validado por Talento Humano','user_id': uid,'doc_holiday_id': ids[0],}, context=context)
+        return self.write(cr, uid, ids, {'state':'validate'})
+
+    
+gt_doc_holidays()

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data noupdate="1">
+    <!--data-->
+
+        <!-- Tipo de relacion familiar -->
+        <!--record id="hr_employee_family_type_conyugue" model="hr.employee.family.type">
+            <field name="name">Cónyuge</field>
+        </record>
+
+        <record id="hr_employee_family_type_hijo" model="hr.employee.family.type">
+            <field name="name">Hijo(a)</field>
+        </record>
+
+        <record id="hr_employee_family_type_padre" model="hr.employee.family.type">
+            <field name="name">Padre</field>
+        </record>
+
+        <record id="hr_employee_family_type_madre" model="hr.employee.family.type">
+            <field name="name">Madre</field>
+        </record>
+
+        <record id="hr_employee_family_type_tio" model="hr.employee.family.type">
+            <field name="name">Tio(a)</field>
+        </record>
+
+        <record id="hr_employee_family_type_hermano" model="hr.employee.family.type">
+            <field name="name">Hermano(a)</field>
+        </record>
+
+        <record id="hr_employee_family_type_sobrino" model="hr.employee.family.type">
+            <field name="name">Sobrino(a)</field>
+        </record>
+
+        <record id="hr_employee_family_type_ulibre" model="hr.employee.family.type">
+            <field name="name">Unión Libre</field>
+        </record>
+
+        <record id="hr_employee_family_type_entenado" model="hr.employee.family.type">
+            <field name="name">Otro</field>
+        </record-->
+
+    </data>
+</openerp>

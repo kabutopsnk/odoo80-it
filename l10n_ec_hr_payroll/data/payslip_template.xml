@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+<openerp>
+    <!--data noupdate="1"-->
+    <data>
+    	
+        <record id="email_template_payslip_ec" model="email.template">
+            <field name="name">Rol de Pagos de Empleado</field>
+            <field name="email_from">sistema.rrhh@laitaliana.com.ec</field>
+            <field name="reply_to">sistema.rrhh@laitaliana.com.ec</field>
+            <field name="subject">Rol de Pagos ${object.date_start} - ${object.date_end}</field>
+            <field name="email_to">${object.employee_id.personal_email|safe}</field>
+            <field name="lang">${object.lang}</field>
+            <field name="model_id" ref="hr_payroll.model_hr_payslip"/>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html"><![CDATA[
+<div style="font-family: 'Lucica Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: rgb(255, 255, 255); ">
+
+<center>
+						<table cellspacing="0" width="100%" style="font-size:12px;vertical-align:top;">
+					    	<tr>
+					    		<th width="100%" colspan="4">
+					    			<center>
+					    				${object.contract_id.company_id.name}
+					    				<br/>RUC: ${object.contract_id.company_id.ruc}
+					    			</center>
+					    		</th>
+					    	</tr>
+					    	<tr><td colspan="4"> <br/> </td></tr>
+					    	<tr>
+					    		<th width="15%">Cedula:</th>
+					    		<td width="35%">${object.employee_id.name}</td>
+					    		<th width="15%">Empleado:</th>
+					    		<td width="35%">${object.employee_id.name_related}</td>
+					    	</tr>
+					    	<tr>
+					    		<th width="15%">Cargo:</th>
+					    		<td width="35%">${object.job_id.name}</td>
+					    		<th width="15%">Tipo de rol:</th>
+					    		% if object.payroll_type == 'monthly':
+					    			<td width="35%">Mensual</td>
+					    		% endif
+					    		% if object.payroll_type == 'bi-weekly':
+					    			<td width="35%">Quincenal</td>
+					    		% endif
+					    		% if object.payroll_type == 'bi-weekly':
+					    			<td width="35%">Quincenal</td>
+					    		% endif
+					    		% if object.payroll_type == 'decimotercero':
+					    			<td width="35%">Decimo Tercero</td>
+					    		% endif
+					    		% if object.payroll_type == 'decimocuarto':
+					    			<td width="35%">Decimo Cuarto</td>
+					    		% endif
+					    		% if object.payroll_type == 'otro':
+					    			<td width="35%">Otro</td>
+					    		% endif
+					    	</tr>
+					    	<tr>
+					    		<th width="15%">Sueldo Nominal:</th>
+					    		<td width="35%">${object.contract_id.wage}</td>
+					    		<th width="15%">Periodo:</th>
+					    		<td width="35%">${object.date_from} - ${object.date_to}</td>
+					    	</tr>
+					    	<tr><td colspan="4"> <br/> </td></tr>
+					    	<tr><td colspan="4" width="100%">
+					    		<table cellspacing="0" width="35%" border="1">
+					    			<tr>
+					    				<th width="100%" colspan="2" style="text-align:center;">Dias Laborados</th>
+					    			</tr>
+					    			% for worked_line in object.worked_days_line_ids:
+					    				<tr>
+					    					<td width="70%">${worked_line.name}</td>
+					    					<td width="30%">${worked_line.number_of_days}</td>
+					    				</tr>
+					    			% endfor
+					    		</table>
+					    	</td></tr>
+					    	<tr><td colspan="4"> <br/> </td></tr>
+					    	<tr><td colspan="4" width="100%">
+					    		<table cellspacing="0" width="100%" border="1">
+					    			<tr>
+					    				<th width="45%" style="text-align:center;">INGRESOS</th>
+					    				<th width="10%"></th>
+					    				<th width="45%" style="text-align:center;">EGRESOS</th>
+					    			</tr>
+					    			<tr>
+					    				<td width="45%">
+					    					<table  cellspacing="0" width="100%">
+					    						% for line in object.line_ids:
+					    							% if line.category_id.code in ['APT','BASIC','ING']:
+					    								<tr>
+					    									<td width="80%" style="text-align:left;">${line.name}</td>
+					    									<td width="20%" style="text-align:right;">${line.total}</td>
+					    								</tr>
+					    							% endif
+					    						% endfor
+					    					</table>
+					    				</td>
+					    				<td width="10%"></td>
+					    				<td width="45%">
+					    					<table cellspacing="0" width="100%">
+					    						% for line in object.line_ids:
+					    							% if line.category_id.code in ['EGR']:
+					    								<tr>
+					    									<td width="80%" style="text-align:left;">${line.name}</td>
+					    									<td width="20%" style="text-align:right;">${line.total}</td>
+					    								</tr>
+					    							% endif
+					    						% endfor
+					    					</table>
+					    				</td>
+					    			</tr>
+					    			<tr>
+					    				<td width="45%">
+					    					<table cellspacing="0" width="100%">
+					    						% for line in object.line_ids:
+					    							% if line.code in ['C00011']:
+					    								<tr>
+					    									<td width="80%" style="text-align:left;">${line.name}</td>
+					    									<td width="20%" style="text-align:right;">${line.total}</td>
+					    								</tr>
+					    							% endif
+					    						% endfor
+					    					</table>
+					    				</td>
+					    				<td width="10%"></td>
+					    				<td width="45%">
+					    					<table cellspacing="0" width="100%">
+					    						% for line in object.line_ids:
+					    							% if line.code in ['C00023']:
+					    								<tr>
+					    									<td width="80%" style="text-align:left;">${line.name}</td>
+					    									<td width="20%" style="text-align:right;">${line.total}</td>
+					    								</tr>
+					    							% endif
+					    						% endfor
+					    					</table>
+					    				</td>
+					    			</tr>
+					    			<tr><td colspan="3"> <br/> </td></tr>
+					    			<tr>
+					    				<td colspan="3">
+					    					<table cellspacing="0" width="100%" style="font-size:12px">
+					    						% for line in object.line_ids:
+					    							% if line.category_id.code in ['NET'] and line.total>=0:
+					    								<tr>
+					    									<td width="80%" style="text-align:right;">${line.name}:</td>
+					    									<td width="20%" style="text-align:right;">${line.total}</td>
+					    								</tr>
+					    							% endif
+					    							% if line.category_id.code in ['NET'] and 0>line.total:
+					    								<tr>
+					    									<td width="80%" style="text-align:right;"><b>SOBREGIRO:</b></td>
+					    									<td width="20%" style="text-align:right;">${line.total}</td>
+					    								</tr>
+					    							% endif
+					    						% endfor
+					    					</table>
+					    				</td>
+					    			</tr>
+					    		</table>
+					    	</td></tr>
+					    	<tr>
+					    		<td width="100%" colspan="4">El detalle del Rol de Pagos ha sido enviado al correo electrónico ${object.employee_id.personal_email or ''}</td>
+					    	</tr>
+					    	<tr>
+					    		<td width="100%" colspan="4">${object.payslip_run_id.notes or ''}</td>
+					    	</tr>
+					    </table>
+				    </center>
+
+</div>
+            ]]></field>
+        </record>
+
+
+    </data>
+</openerp>

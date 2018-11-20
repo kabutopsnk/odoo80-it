@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <!--data noupdate="1"-->
+    <data>
+
+        <record id="cuenta_ahorros" model="res.partner.bank.type">
+            <field name="name">Cuenta de Ahorros</field>
+            <field name="code">aho</field>
+        </record>
+
+        <record id="cuenta_corriente" model="res.partner.bank.type">
+            <field name="name">Cuenta Corriente</field>
+            <field name="code">cte</field>
+        </record>
+
+        <record id="cuenta_virtual" model="res.partner.bank.type">
+            <field name="name">Cuenta Virtual</field>
+            <field name="code">vir</field>
+        </record>
+
+    </data>
+</openerp>

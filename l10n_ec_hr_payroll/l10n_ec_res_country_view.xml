@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+	<data>
+		<menuitem id="base.menu_localisation" name="Localization" parent="hr.menu_hr_configuration" groups="base.group_no_one,base.group_hr_user"/>
+
+<!-- CANTONES -->
+
+		<!--record model="ir.ui.view" id="view_res_country_state_canton_tree">
+			<field name="name">res.country.state.canton.tree</field>
+			<field name="model">res.country.state.canton</field>
+			<field name="type">tree</field>
+			<field name="arch" type="xml">
+				<tree string="Cantones">
+					<field name="country_id"/>
+					<field name="state_id"/>
+					<field name="name"/>
+					<field name="code"/>
+				</tree>
+			</field>
+		</record>
+		
+		<record model="ir.ui.view" id="view_res_country_state_canton_form">
+			<field name="name">res.country.state.canton.form</field>
+			<field name="model">res.country.state.canton</field>
+			<field name="type">form</field>
+			<field name="arch" type="xml">
+				<form string="Cantones">
+					<sheet>
+						<group>
+							<field name="country_id"/>
+							<field name="state_id"/>
+							<field name="name"/>
+							<field name="code"/>
+						</group>
+					</sheet>
+				</form>
+			</field>
+		</record>
+		
+		<record id="action_res_country_state_canton" model="ir.actions.act_window">
+			<field name="name">Cantones</field>
+			<field name="res_model">res.country.state.canton</field>
+			<field name="view_type">form</field>
+			<field name="view_mode">tree,form</field>
+			<field name="view_id" eval="False"/>
+		</record>
+		
+		<menuitem parent="base.menu_localisation" id="menu_res_country_state_canton" action="action_res_country_state_canton"/-->
+		
+		<!-- CIUDADES -->
+		
+		<record model="ir.ui.view" id="view_res_country_state_city_tree">
+			<field name="name">res.country.state.city.tree</field>
+			<field name="model">res.country.state.city</field>
+			<field name="type">tree</field>
+			<field name="arch" type="xml">
+				<tree string="Ciudades">
+					<field name="country_id"/>
+					<field name="state_id"/>
+					<field name="name"/>
+					<field name="code"/>
+				</tree>
+			</field>
+		</record>
+		
+		<record model="ir.ui.view" id="view_res_country_state_city_form">
+			<field name="name">res.country.state.city.form</field>
+			<field name="model">res.country.state.city</field>
+			<field name="type">form</field>
+			<field name="arch" type="xml">
+				<form string="Ciudades">
+					<sheet>
+						<group>
+							<field name="country_id"/>
+							<field name="state_id"/>
+							<field name="name"/>
+							<field name="code"/>
+						</group>
+					</sheet>
+				</form>
+			</field>
+		</record>
+		
+		<record id="action_res_country_state_city" model="ir.actions.act_window">
+			<field name="name">Ciudades</field>
+			<field name="res_model">res.country.state.city</field>
+			<field name="view_type">form</field>
+			<field name="view_mode">tree,form</field>
+			<field name="view_id" eval="False"/>
+		</record>
+		
+		<menuitem parent="base.menu_localisation" id="menu_res_country_state_city" action="action_res_country_state_city"/>
+
+		<record model="ir.ui.view" id="inherit_view_res_country_state_form">
+			<field name="name">res.country.state.form</field>
+			<field name="model">res.country.state</field>
+			<field name="type">form</field>
+			<field name="inherit_id" ref="base.view_country_state_form"/>
+			<field name="arch" type="xml">
+				<data>
+					<field name="country_id" position="after">
+						<field name="anterior_id" readonly="1"/>
+					</field>
+				</data>
+			</field>
+		</record>
+
+		<record model="ir.ui.view" id="inherit_view_res_country_form">
+			<field name="name">res.country.form</field>
+			<field name="model">res.country</field>
+			<field name="type">form</field>
+			<field name="inherit_id" ref="base.view_country_form"/>
+			<field name="arch" type="xml">
+				<data>
+					<field name="code" position="after">
+						<field name="code_phone" required="1" readonly="1"/>
+					</field>
+				</data>
+			</field>
+		</record>
+
+    </data>
+</openerp>

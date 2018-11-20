@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data noupdate="1">
+
+        <record id="hr_payroll.contrib_register_employees" model="hr.contribution.register">
+            <field name="name">Empleados</field>
+            <field name="partner_id" eval="False"/>
+        </record>
+
+        <record id="hr_payroll.BASIC" model="hr.salary.rule.category">
+            <field name="name">Salario</field>
+            <field name="code">BASIC</field>
+        </record>
+
+        <record id="hr_payroll.ALW" model="hr.salary.rule.category">
+            <field name="name">Ingresos</field>
+            <field name="code">ING</field>
+        </record>
+
+        <record id="hr_payroll.GROSS" model="hr.salary.rule.category">
+            <field name="name">Ingresos Aportables</field>
+            <field name="code">APT</field>
+        </record>
+
+        <record id="hr_payroll.DED" model="hr.salary.rule.category">
+            <field name="name">Egresos</field>
+            <field name="code">EGR</field>
+        </record>
+
+        <record id="hr_payroll.NET" model="hr.salary.rule.category">
+            <field name="name">Neto</field>
+            <field name="code">NET</field>
+        </record>
+
+        <record id="hr_payroll.COMP" model="hr.salary.rule.category">
+            <field name="name">Provisiones</field>
+            <field name="code">PROV</field>
+        </record>
+
+        <!--record id="COMISIONES" model="hr.salary.rule.category">
+            <field name="name">Comisiones</field>
+            <field name="code">COMISION</field>
+        </record-->
+
+        <record id="SUBTOTAL" model="hr.salary.rule.category">
+            <field name="name">Subtotal</field>
+            <field name="code">SUBTOTAL</field>
+        </record>
+
+        <!--record id="hr_payroll.hr_rule_basic" model="hr.salary.rule">
+            <field name="name">Remuneración Unificada</field>
+            <field name="sequence" eval="1"/>
+            <field name="code">BASIC</field>
+            <field name="category_id" ref="hr_payroll.BASIC"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = contract.wage</field>
+        </record-->
+
+        <record id="hr_payroll.hr_rule_taxable" model="hr.salary.rule">
+            <field name="name">Subtotal aportable</field>
+            <field name="sequence" eval="905"/>
+            <field name="code">SUB_APT</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="SUBTOTAL"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = categories.BASIC + categories.APT</field>
+        </record>
+
+        <record id="hr_rule_ingresos" model="hr.salary.rule">
+            <field name="name">Subtotal ingresos</field>
+            <field name="sequence" eval="910"/>
+            <field name="code">SUB_ING</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="SUBTOTAL"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = categories.ING</field>
+        </record>
+
+        <record id="hr_rule_digno" model="hr.salary.rule">
+            <field name="name">Subtotal salario digno</field>
+            <field name="sequence" eval="915"/>
+            <field name="code">SUB_DIGNO</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="SUBTOTAL"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = living_wage</field>
+        </record>
+
+        <record id="hr_rule_egresos" model="hr.salary.rule">
+            <field name="name">Subtotal egresos</field>
+            <field name="sequence" eval="920"/>
+            <field name="code">SUB_EGR</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="SUBTOTAL"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = categories.EGR</field>
+        </record>
+
+        <record id="hr_payroll.hr_rule_net" model="hr.salary.rule">
+            <field name="name">Total</field>
+            <field name="sequence" eval="950"/>
+            <field name="code">NET</field>
+            <field name="category_id" ref="hr_payroll.NET"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = categories.BASIC + categories.APT + categories.ING - categories.EGR</field>
+            <field name="register_id" ref="hr_payroll.contrib_register_employees"/>
+        </record>
+
+
+        <!-- Salary Structure -->
+
+         <!--record id="hr_payroll.structure_base" model="hr.payroll.structure">
+            <field name="code">BASE</field>
+            <field name="name">Estructura Básica</field>
+            <field eval="[(6, 0, [ref('hr_payroll.hr_rule_basic'),ref('hr_payroll.hr_rule_net')])]" name="rule_ids"/>
+            <field name="company_id" ref="base.main_company"/>
+        </record-->
+
+
+        <!-- Aditional Rules ECUADOR PROVISIONES -->
+
+        <record id="provision_iess_patronal" model="hr.salary.rule">
+            <field name="name">Provision - APORTE PATRONAL</field>
+            <field name="code">PROV_IESS</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="hr_payroll.COMP"/>
+            <field name="sequence" eval="951"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = (categories.BASIC + categories.APT)*0.1215 #Falta restar cumplimiento</field>
+        </record>
+
+        <record id="provision_vacaciones" model="hr.salary.rule">
+            <field name="name">Provision - VACACIONES</field>
+            <field name="code">PROV_VACACIONES</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="hr_payroll.COMP"/>
+            <field name="sequence" eval="952"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+aportable_salario = (contract.wage/30.0)*dias
+
+result = ((aportable_salario + categories.APT  )/24.0)*15</field>
+        </record>
+
+        <record id="provision_decimo13" model="hr.salary.rule">
+            <field name="name">Provision - DECIMO TERCERO</field>
+            <field name="code">PROV_DECIMO13</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="hr_payroll.COMP"/>
+            <field name="sequence" eval="953"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+aportable_salario = (contract.wage/30.0)*dias
+
+result = (aportable_salario + categories.APT  )/12.0</field>
+        </record>
+		
+        <record id="provision_decimo14" model="hr.salary.rule">
+            <field name="name">Provision - DECIMO CUARTO</field>
+            <field name="code">PROV_DECIMO14</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="hr_payroll.COMP"/>
+            <field name="sequence" eval="954"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+result = (340/360.0)*(dias)</field>
+        </record>
+
+        <record id="provision_iece" model="hr.salary.rule">
+            <field name="name">Provision - IECE</field>
+            <field name="code">PROV_IECE</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="hr_payroll.COMP"/>
+            <field name="sequence" eval="955"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+aportable_salario = (contract.wage/30.0)*dias
+
+result = (aportable_salario + categories.APT  )*0.005</field>
+        </record>
+		
+        <record id="provision_secap" model="hr.salary.rule">
+            <field name="name">Provision - SECAP</field>
+            <field name="code">PROV_SECAP</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="hr_payroll.COMP"/>
+            <field name="sequence" eval="956"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+aportable_salario = (contract.wage/30.0)*dias
+
+result = (aportable_salario + categories.APT  )*0.005</field>
+        </record>
+
+        <!-- ECUADOR SALARIO UNIFICADO -->
+
+        <record id="hr_payroll.hr_rule_basic" model="hr.salary.rule">
+            <field name="name">Remuneracion Unificada</field>
+            <field name="code">BASE</field>
+            <field name="category_id" ref="hr_payroll.BASIC"/>
+            <field name="sequence" eval="1"/>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+salario = (contract.wage/30.0)*(dias)
+
+if worked_days.MAT:
+    salario += (contract.wage/30.0)*(worked_days.MAT.number_of_days)*0.25
+
+result = salario</field>
+        </record>
+
+
+        <!-- ECUADOR PENSION ALIMENTOS -->
+
+        <record id="regla_pension_alimentos" model="hr.salary.rule">
+            <field name="name">Pension de Alimentos</field>
+            <field name="code">PENSION_ALIMENTOS</field>
+            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="sequence" eval="501"/>
+            <field name="condition_select">python</field>
+            <field name="condition_python">total = 0
+for familiar in employee.family_lines:
+    if familiar.recibe_pension=='pension_alimentos':
+        total = total + familiar.valor_pension
+if total>0:
+    result=True
+else:
+    result=False</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">total = 0
+for familiar in employee.family_lines:
+    if familiar.recibe_pension=='pension_alimentos':
+        total = total + familiar.valor_pension
+result = total</field>
+        </record>
+        
+        <record id="regla_funcion_judiciak" model="hr.salary.rule">
+            <field name="name">Funcion Judicial</field>
+            <field name="code">FUNCION_JUDICIAL</field>
+            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="sequence" eval="501"/>
+            <field name="condition_select">python</field>
+            <field name="condition_python">total = 0
+for familiar in employee.family_lines:
+    if familiar.recibe_pension=='funcion_judicial':
+        total = total + familiar.valor_pension
+if total>0:
+    result=True
+else:
+    result=False</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">total = 0
+for familiar in employee.family_lines:
+    if familiar.recibe_pension=='funcion_judicial':
+        total = total + familiar.valor_pension
+result = total</field>
+        </record>
+
+        <!-- REGLA SALARIAL PARA EL APORTE PERSONAL DEL IESS -->
+        <record id="regla_aporte_personal_iess" model="hr.salary.rule">
+            <field name="name">Aporte Personal IESS</field>
+            <field name="code">IESS_PERSONAL</field>
+            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="sequence" eval="502"/>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+aportable_salario = (contract.wage/30.0)*dias
+
+result = (aportable_salario + categories.APT)*0.0945</field>
+        </record>
+        
+        <record id="regla_extension_cobertura_iess" model="hr.salary.rule">
+            <field name="name">Extension de cobertura del IESS</field>
+            <field name="code">IESS_EXTENSION</field>
+            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="sequence" eval="503"/>
+            <field name="condition_select">python</field>
+            <field name="condition_python">result = contract.extension_iess</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+aportable_salario = (contract.wage/30.0)*dias
+
+result = (aportable_salario + categories.APT  )*0.0341</field>
+        </record>
+
+        <!-- REGLA SALARIAL PARA EL FONDO DE RESERVA -->
+        <record id="regla_fondo_reserva" model="hr.salary.rule">
+            <field name="name">Fondos de Reserva</field>
+            <field name="code">FRESERVA</field>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="sequence" eval="601"/>
+            <field name="condition_select">python</field>
+            <field name="condition_python">#dividimos la fecha del contrato en año, mes y dia
+anio_c = easy_datetime.get_year(contract.date_start)
+mes_c = easy_datetime.get_month(contract.date_start)
+dia_c = easy_datetime.get_day(contract.date_start)
+
+
+#dividimos la fecha de fin del rol de pagos en año, mes y dia
+anio_p = easy_datetime.get_year(payslip.date_to)
+mes_p = easy_datetime.get_month(payslip.date_to)
+dia_p = easy_datetime.get_day(payslip.date_to)
+
+
+#calculamos el total de dias de diferencia entre el contrato y el rol
+dias = ((anio_p*365)+(mes_p*30)+dia_p) - ((anio_c*365)+(mes_c*30)+dia_c)
+dias = dias + contract.previous_days
+
+#si los dias son mayores a 365 o 1 año, se puede proceder a calcular el valor
+#result = (dias>365) and (contract.fondo_reserva==True)
+result = (dias>365)</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">#dividimos la fecha del contrato en año, mes y dia
+anio_c = easy_datetime.get_year(contract.date_start)
+mes_c = easy_datetime.get_month(contract.date_start)
+dia_c = easy_datetime.get_day(contract.date_start)
+
+
+#dividimos la fecha de fin del rol de pagos en año, mes y dia
+anio_p = easy_datetime.get_year(payslip.date_to)
+mes_p = easy_datetime.get_month(payslip.date_to)
+dia_p = easy_datetime.get_day(payslip.date_to)
+
+
+#calculamos el total de dias de diferencia entre el contrato y el rol
+dias = ((anio_p*365)+(mes_p*30)+dia_p) - ((anio_c*365)+(mes_c*30)+dia_c)
+dias = dias + contract.previous_days
+
+valor = 0
+
+#si son menos de 30 dias, luego de pasado 1 año de trabajo, se calcula el proporcional a los dias correspondientes, caso contrario se coloca el valor completo
+if (dias-395)>=0:
+    dias_s = worked_days.WORK100.number_of_days
+    if worked_days.ENF:
+        dias_s = dias_s + worked_days.ENF.number_of_days
+    if worked_days.MAT:
+        dias_s = dias_s + worked_days.MAT.number_of_days
+    if worked_days.PERM:
+        dias_s = dias_s + worked_days.PERM.number_of_days
+    aportable_salario = (contract.wage/30.0)*dias_s
+
+    valor = ((aportable_salario + categories.APT) * 0.0833)
+else:
+    if mes_p==1 or mes_p==3 or mes_p==5 or mes_p==7 or mes_p==8 or mes_p==10 or mes_p==12:
+        dias = dias + 1
+
+    dias_s = worked_days.WORK100.number_of_days
+    if worked_days.ENF:
+        dias_s = dias_s + worked_days.ENF.number_of_days
+    if worked_days.MAT:
+        dias_s = dias_s + worked_days.MAT.number_of_days
+    if worked_days.PERM:
+        dias_s = dias_s + worked_days.PERM.number_of_days
+    aportable_salario = (contract.wage/30.0)*dias_s
+
+    valor = (((aportable_salario + categories.APT  )*0.0833)/30.0)*(dias-365)
+
+result = valor</field>
+        </record>
+        
+        <!-- REGLA SALARIAL PARA ENVIAR FONDOS DE RESERVA AL IESS -->
+        <record id="regla_freserva_iess" model="hr.salary.rule">
+            <field name="name">Fondos de Reserva a IESS</field>
+            <field name="code">PROV_FRESERVA_IESS</field>
+            <field name="appears_on_payslip">False</field>
+            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="sequence" eval="602"/>
+            <field name="condition_select">python</field>
+            <field name="condition_python">#dividimos la fecha del contrato en año, mes y dia
+anio_c = easy_datetime.get_year(contract.date_start)
+mes_c = easy_datetime.get_month(contract.date_start)
+dia_c = easy_datetime.get_day(contract.date_start)
+
+
+#dividimos la fecha de fin del rol de pagos en año, mes y dia
+anio_p = easy_datetime.get_year(payslip.date_to)
+mes_p = easy_datetime.get_month(payslip.date_to)
+dia_p = easy_datetime.get_day(payslip.date_to)
+
+
+#calculamos el total de dias de diferencia entre el contrato y el rol
+dias = ((anio_p*365)+(mes_p*30)+dia_p) - ((anio_c*365)+(mes_c*30)+dia_c)
+dias = dias + contract.previous_days
+
+#si los dias son mayores a 365 o 1 año, se puede proceder a calcular el valor
+result = (dias>365) and (contract.fondo_reserva==False)</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">#dividimos la fecha del contrato en año, mes y dia
+anio_c = easy_datetime.get_year(contract.date_start)
+mes_c = easy_datetime.get_month(contract.date_start)
+dia_c = easy_datetime.get_day(contract.date_start)
+
+
+#dividimos la fecha de fin del rol de pagos en año, mes y dia
+anio_p = easy_datetime.get_year(payslip.date_to)
+mes_p = easy_datetime.get_month(payslip.date_to)
+dia_p = easy_datetime.get_day(payslip.date_to)
+
+
+#calculamos el total de dias de diferencia entre el contrato y el rol
+dias = ((anio_p*365)+(mes_p*30)+dia_p) - ((anio_c*365)+(mes_c*30)+dia_c)
+dias = dias + contract.previous_days
+
+valor = 0
+
+#si son menos de 30 dias, luego de pasado 1 año de trabajo, se calcula el proporcional a los dias correspondientes, caso contrario se coloca el valor completo
+if (dias-395)>=0:
+    dias_s = worked_days.WORK100.number_of_days
+    if worked_days.ENF:
+        dias_s = dias_s + worked_days.ENF.number_of_days
+    if worked_days.MAT:
+        dias_s = dias_s + worked_days.MAT.number_of_days
+    if worked_days.PERM:
+        dias_s = dias_s + worked_days.PERM.number_of_days
+    aportable_salario = (contract.wage/30.0)*dias_s
+
+    valor = ((aportable_salario + categories.APT) * 0.0833)
+else:
+    if mes_p==1 or mes_p==3 or mes_p==5 or mes_p==7 or mes_p==8 or mes_p==10 or mes_p==12:
+        dias = dias + 1
+
+    dias_s = worked_days.WORK100.number_of_days
+    if worked_days.ENF:
+        dias_s = dias_s + worked_days.ENF.number_of_days
+    if worked_days.MAT:
+        dias_s = dias_s + worked_days.MAT.number_of_days
+    if worked_days.PERM:
+        dias_s = dias_s + worked_days.PERM.number_of_days
+    aportable_salario = (contract.wage/30.0)*dias_s
+
+    valor = (((aportable_salario + categories.APT  )*0.0833)/30.0)*(dias-365)
+
+result = valor</field>
+        </record>
+
+        <!-- REGLA SALARIAL PARA EL IMPUESTO A LA RENTA -->
+        <record id="regla_impuesto_renta" model="hr.salary.rule">
+            <field name="name">Impuesto a la Renta</field>
+            <field name="code">IMP_RENTA</field>
+            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="sequence" eval="505"/>
+            <field name="condition_select">python</field>
+            <field name="condition_python">tabla_base = ec_sri.tabla_base(payslip.date_to)
+#obtenemos la informacion del historial
+contador = no_encontrados = proyectar_aportable = proyectar_no_aportable = no_proyectar_aportable = no_proyectar_no_aportable = retenido = otros_empleadores = otros_empleadores_iess = otros_valores = otros_empleadores_retenido = 0
+for anual in employee.profit_lines:
+  if payslip.date_from>=anual.date_start and anual.date_stop>=payslip.date_to:
+    for linea in anual.line_ids:
+      if payslip.date_to>=linea.date_stop:
+        proyectar_aportable +=linea.proyectar_aportable or 0.0
+        proyectar_no_aportable += linea.proyectar_no_aportable or 0.0
+        no_proyectar_aportable += linea.no_proyectar_aportable or 0.0
+        no_proyectar_no_aportable += linea.no_proyectar_no_aportable or 0.0
+        retenido += linea.retenido or 0.0
+        otros_empleadores += linea.otros_empleadores or 0.0
+        otros_empleadores_iess += linea.otros_empleadores_iess or 0.0
+        otros_valores += linea.otros_valores or 0.0
+        otros_empleadores_retenido += linea.otros_empleadores_retenido or 0.0
+      if payslip.date_to>=linea.date_stop and linea.name=='mensual':
+        contador += 1
+
+#agregamos el valor actual
+mes_actual = easy_datetime.get_month(payslip.date_to)
+meses_faltantes = (12-mes_actual)+1
+no_encontrados = mes_actual - (contador+1)
+encontrados = contador + 1
+
+dias = worked_days.WORK100.number_of_days
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+aportable_salario = (contract.wage/30.0)*dias
+
+proyectar_aportable += (aportable_salario + categories.APT  )
+proyectar_aportable = (proyectar_aportable/encontrados)*(12-no_encontrados)
+proyectar_no_aportable += categories.ING
+proyectar_no_aportable = (proyectar_no_aportable/encontrados)*(12-no_encontrados)
+
+
+#calculamos el aporte al iess
+aporte_iess = (proyectar_aportable + no_proyectar_aportable)*0.0945
+
+base_imponible = proyectar_aportable + proyectar_no_aportable + no_proyectar_aportable + no_proyectar_no_aportable + otros_empleadores + otros_valores - (otros_empleadores_iess+aporte_iess+otros_empleadores_retenido)
+
+proyecciones = 0
+for anual in employee.projection_lines:
+  if payslip.date_from>=anual.date_start and anual.date_stop>=payslip.date_to:
+    for linea in anual.line_ids:
+        proyecciones += linea.value
+
+base_imponible -= proyecciones
+
+impuesto_anual=0
+#buscamos la linea de la tabla base
+for linea in tabla_base.taxable_lines:
+  if base_imponible>=linea.basic_fraction and linea.excess_to>=base_imponible:
+    impuesto_anual = linea.basic_fraction_tax
+    impuesto_anual += (base_imponible-linea.basic_fraction)*linea.excess_fraction_percent/100.0
+
+impuesto_anual -= retenido
+
+if impuesto_anual>0:
+  result = True
+else:
+  result = False</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">tabla_base = ec_sri.tabla_base(payslip.date_to)
+#obtenemos la informacion del historial
+contador = no_encontrados = proyectar_aportable = proyectar_no_aportable = no_proyectar_aportable = no_proyectar_no_aportable = retenido = otros_empleadores = otros_empleadores_iess = otros_valores = otros_empleadores_retenido = 0
+for anual in employee.profit_lines:
+  if payslip.date_from>=anual.date_start and anual.date_stop>=payslip.date_to:
+    for linea in anual.line_ids:
+      if payslip.date_to>=linea.date_stop:
+        proyectar_aportable +=linea.proyectar_aportable or 0.0
+        proyectar_no_aportable += linea.proyectar_no_aportable or 0.0
+        no_proyectar_aportable += linea.no_proyectar_aportable or 0.0
+        no_proyectar_no_aportable += linea.no_proyectar_no_aportable or 0.0
+        retenido += linea.retenido or 0.0
+        otros_empleadores += linea.otros_empleadores or 0.0
+        otros_empleadores_iess += linea.otros_empleadores_iess or 0.0
+        otros_valores += linea.otros_valores or 0.0
+        otros_empleadores_retenido += linea.otros_empleadores_retenido or 0.0
+      if payslip.date_to>=linea.date_stop and linea.name=='mensual':
+        contador += 1
+
+#agregamos el valor actual
+mes_actual = easy_datetime.get_month(payslip.date_to)
+meses_faltantes = (12-mes_actual)+1
+no_encontrados = mes_actual - (contador+1)
+encontrados = contador + 1
+
+dias = worked_days.WORK100.number_of_days
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+aportable_salario = (contract.wage/30.0)*dias
+
+proyectar_aportable += (aportable_salario + categories.APT  )
+proyectar_aportable = (proyectar_aportable/encontrados)*(12-no_encontrados)
+proyectar_no_aportable += categories.ING
+proyectar_no_aportable = (proyectar_no_aportable/encontrados)*(12-no_encontrados)
+
+
+#calculamos el aporte al iess
+aporte_iess = (proyectar_aportable + no_proyectar_aportable)*0.0945
+
+base_imponible = proyectar_aportable + proyectar_no_aportable + no_proyectar_aportable + no_proyectar_no_aportable + otros_empleadores + otros_valores - (otros_empleadores_iess+aporte_iess+otros_empleadores_retenido)
+
+proyecciones = 0
+for anual in employee.projection_lines:
+  if payslip.date_from>=anual.date_start and anual.date_stop>=payslip.date_to:
+    for linea in anual.line_ids:
+        proyecciones += linea.value
+
+base_imponible -= proyecciones
+
+impuesto_anual=0
+#buscamos la linea de la tabla base
+for linea in tabla_base.taxable_lines:
+  if base_imponible>=linea.basic_fraction and linea.excess_to>=base_imponible:
+    impuesto_anual = linea.basic_fraction_tax
+    impuesto_anual += (base_imponible-linea.basic_fraction)*linea.excess_fraction_percent/100.0
+
+impuesto_anual -= retenido
+
+valor = 0.0
+if impuesto_anual>0:
+  valor = impuesto_anual/meses_faltantes
+
+result = valor</field>
+        </record>
+
+        <!-- ECUADOR ANTICIPO DE QUINCENA -->
+
+        <record id="hr_rule_biweekly" model="hr.salary.rule">
+            <field name="name">Sueldo de Quincena</field>
+            <field name="code">BASE</field>
+            <field name="category_id" ref="hr_payroll.BASIC"/>
+            <field name="sequence" eval="1"/>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+porcentaje_sueldo = contract.wage*contract.biweekly_percent/100.0
+
+result = (porcentaje_sueldo/15.0)*dias
+
+if 8>dias:
+  result=0</field>
+        </record>
+
+         <record id="structure_quincena" model="hr.payroll.structure">
+            <field name="code">QUINCENA</field>
+            <field name="name">ANTICIPO DE QUINCENA</field>
+            <field eval="[(6, 0, [ref('hr_rule_biweekly'),ref('hr_payroll.hr_rule_net')])]" name="rule_ids"/>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <!-- ECUADOR CONTRATO EVENTUAL DISCONTINUO -->
+
+        <record id="hr_rule_salario_eventual" model="hr.salary.rule">
+            <field name="name">Remuneracion Unificada Eventual PRUEBA</field>
+            <field name="code">BASE</field>
+            <field name="category_id" ref="hr_payroll.BASIC"/>
+            <field name="sequence" eval="1"/>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">dias = worked_days.WORK100.number_of_days
+
+if worked_days.VAC:
+    dias = dias + worked_days.VAC.number_of_days
+
+if worked_days.ENF:
+    dias = dias + worked_days.ENF.number_of_days
+
+if worked_days.MAT:
+    dias = dias + worked_days.MAT.number_of_days
+
+if worked_days.PERM:
+    dias = dias + worked_days.PERM.number_of_days
+
+porcentaje_sueldo = contract.wage*1.35</field>
+        </record>
+
+        <record id="eventual_vacaciones" model="hr.salary.rule">
+            <field name="name">Eventual Discontinuo - Vacaciones</field>
+            <field name="code">EVENT_VACACIONES</field>
+            <field name="category_id" ref="hr_payroll.GROSS"/>
+            <field name="sequence" eval="290"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = (categories.BASIC + categories.APT)*0.005</field>
+        </record>
+
+        <record id="eventual_decimo13" model="hr.salary.rule">
+            <field name="name">Eventual Discontinuo - DECIMO TERCERO</field>
+            <field name="code">EVENT_DECIMO13</field>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="sequence" eval="393"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = (categories.BASIC + categories.APT)*0.1115</field>
+        </record>
+		
+        <record id="eventual_decimo14" model="hr.salary.rule">
+            <field name="name">Eventual Discontinuo - DECIMO CUARTO</field>
+            <field name="code">EVENT_DECIMO14</field>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="sequence" eval="394"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = (categories.BASIC + categories.APT)*0.005</field>
+        </record>
+
+         <record id="structure_eventual_discontinuo" model="hr.payroll.structure">
+            <field name="code">EVENT_DISCONTINUO</field>
+            <field name="name">CONTRATO EVENTUAL DISCONTINUO</field>
+            <field eval="[(6, 0, [ref('hr_rule_salario_eventual'),ref('eventual_vacaciones'),ref('eventual_decimo13'),ref('eventual_decimo14'),ref('hr_payroll.hr_rule_net')])]" name="rule_ids"/>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+
+    </data>
+</openerp>

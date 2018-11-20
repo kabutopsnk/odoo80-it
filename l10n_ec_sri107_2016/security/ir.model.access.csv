@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hr_manager_sri2016_107_general,sri2016.107.general,model_sri2016_107_general,base.group_hr_manager,1,1,1,1
+access_hr_manager_sri2016_107_individual,sri2016.107.individual,model_sri2016_107_individual,base.group_hr_manager,1,1,1,1
+access_hr_manager_sri2016_107_rubro,sri2016.107.rubro,model_sri2016_107_rubro,base.group_hr_manager,1,1,1,1

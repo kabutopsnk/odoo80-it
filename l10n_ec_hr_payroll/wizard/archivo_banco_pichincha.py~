@@ -1,0 +1,130 @@
+# -*- encoding: utf-8 -*-
+##############################################################################
+#
+#    OpenERP, Open Source Management Solution
+#    Copyright (C) 2011 OpenERP SA (<http://openerp.com>).
+#    Application developed by: Carlos Andrés Ordóñez P.
+#    Country: Ecuador
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without_a even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+##############################################################################
+
+from openerp.osv import fields, osv
+from datetime import datetime
+from time import strftime
+import StringIO
+import base64
+
+class hr_italiana_bancos(osv.osv_memory):
+    _name='hr.italiana.bancos'
+    _description='Exportar archivo de rol a Bancos'
+
+    _columns = {
+                'datas_a0':fields.binary('ITALIMENTOS - Sin Banco'),
+                'datas_a0_fname':fields.char('ITALIMENTOS - Nombre sin Banco', size=100),
+                'datas_a1':fields.binary('ITALIMENTOS - Banco del Pichincha'),
+                'datas_a1_fname':fields.char('ITALIMENTOS - Nombre Banco Pichincha', size=100),
+                'datas_a2':fields.binary('ITALIMENTOS - Banco Internacional'),
+                'datas_a2_fname':fields.char('ITALIMENTOS - Nombre Banco Internacional', size=100),
+                'datas_a3':fields.binary('ITALIMENTOS - Banco del Austro'),
+                'datas_a3_fname':fields.char('ITALIMENTOS - Nombre Banco Austro', size=100),
+
+                'datas_b0':fields.binary('ITALDELI - Sin Banco'),
+                'datas_b0_fname':fields.char('ITALDELI - Nombre sin Banco', size=100),
+                'datas_b1':fields.binary('ITALDELI - Archivo Banco del Pichincha'),
+                'datas_b1_fname':fields.char('ITALDELI - Nombre Banco Pichincha', size=100),
+                'datas_b2':fields.binary('ITALDELI - Archivo Banco Internacional'),
+                'datas_b2_fname':fields.char('ITALDELI - Nombre Banco Internacional', size=100),
+                'datas_b3':fields.binary('ITALDELI - Archivo Banco del Austro'),
+                'datas_b3_fname':fields.char('ITALDELI - Nombre Banco Austro', size=100),
+
+                'payroll_id': fields.many2one('hr.payslip.run','Rol'),
+                }
+    
+    def rol_padre(self, cr, uid, context={}):
+        return context.get('active_id')
+    
+    _defaults = {
+                 'payroll_id': rol_padre,
+                 }
+
+    def generar_archivo(self, cr, uid, ids, context={}):
+        for registro in self.browse(cr, uid, ids, context):
+          buf_a0 = StringIO.StringIO()
+          buf_a1 = StringIO.StringIO()
+          buf_a2 = StringIO.StringIO()
+          buf_a3 = StringIO.StringIO()
+          for rol_individual in registro.payroll_id.slip_ids:
+            if rol_individual.company_id==1 and rol_individual.employee_id.bank_id and rol_individual.employee_id.bank_account_type and rol_individual.employee_id.bank_account_id:
+              if rol_individual.employee_id.bank_id.bic=='00001':
+                for rubro in rol_individual.line_ids:
+                  if rubro.category_id.code=='NET' and rubro.total>0:
+                    monto=rubro.total
+                    monto_str=(("%.2f"%monto).replace(".",'')).rjust(13,'0')
+                    #DETALLE DE LA LINEA
+                    detalle = 'PA'
+                    detalle += '\t' + str(rol_individual.employee_id.anterior_id).rjust(5,'0')
+                    detalle += '\t' + 'USD'
+                    detalle += '\t' + monto_str
+                    detalle += '\t' + 'CTA'
+                    detalle += '\t' + rol_individual.employee_id.bank_account_type.code
+                    detalle += '\t' + rol_individual.employee_id.bank_account_id
+                    detalle += '\t' + registro.payroll_id.name
+                    detalle += '\t' + 'C'
+                    detalle += '\t' + rol_individual.employee_id.name
+                    detalle += '\t' + rol_individual.employee_id.name_related
+                    detalle += '\n'
+                    detalle = detalle.encode('utf-8')
+                    buf_a1.write(detalle.upper())
+            if rol_individual.company_id==3 and rol_individual.employee_id.bank_id and rol_individual.employee_id.bank_account_type and rol_individual.employee_id.bank_account_id:
+              if rol_individual.employee_id.bank_id.bic=='00001':
+                for rubro in rol_individual.line_ids:
+                  if rubro.category_id.code=='NET' and rubro.total>0:
+                    monto=rubro.total
+                    monto_str=(("%.2f"%monto).replace(".",'')).rjust(13,'0')
+                    #DETALLE DE LA LINEA
+                    detalle = 'PA'
+                    detalle += '\t' + str(rol_individual.employee_id.anterior_id).rjust(5,'0')
+                    detalle += '\t' + 'USD'
+                    detalle += '\t' + monto_str
+                    detalle += '\t' + 'CTA'
+                    detalle += '\t' + rol_individual.employee_id.bank_account_type.code
+                    detalle += '\t' + rol_individual.employee_id.bank_account_id
+                    detalle += '\t' + registro.payroll_id.name
+                    detalle += '\t' + 'C'
+                    detalle += '\t' + rol_individual.employee_id.name
+                    detalle += '\t' + rol_individual.employee_id.name_related
+                    detalle += '\n'
+                    detalle = detalle.encode('utf-8')
+                    buf_b1.write(detalle.upper())
+          #archivos
+          out_a1 = base64.encodestring(buf_a1.getvalue())
+          name_a1 = "%s%s.txt" % (str(registro.payroll_id.date_start), " - ITALIMENTOS - BANCO PICHINCHA")
+          self.write(cr, uid, ids, {'datas_a1': out_a1, 'datas_a1_fname': name_a1})
+          buf_a1.close()
+          return {
+          'type': 'ir.actions.act_window',
+          'name': 'Archivo Bancos',
+          'view_mode': 'form',
+          'view_id': False,
+          'view_type': 'form',
+          'res_model': 'hr.italiana.bancos',
+          'res_id': registro.id,
+          'nodestroy': True,
+          'target': 'new',
+          'context': context,
+          }
+
+hr_italiana_bancos()

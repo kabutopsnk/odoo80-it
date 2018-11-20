@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<openerp>
+<data>
+	<menuitem id="menu_hr_desvinculation_root" parent="hr.menu_hr_root" name="Liquidación" sequence="9" groups="base.group_hr_manager"/>
+	<menuitem id="menu_hr_liquidation_configuration" parent="hr.menu_hr_configuration" name="Liquidación"/>
+	
+	<!-- Reglas de Liquidacion -->
+	
+	<record id="hr_liquidation_rule_list" model="ir.ui.view">
+		<field name="name">hr.liquidation.rule.list</field>
+		<field name="model">hr.liquidation.rule</field>
+		<field name="type">tree</field>
+		<field name="arch" type="xml">
+			<tree string="Reglas de Liquidación">
+				<field name="name"/>
+				<field name="code"/>
+				<field name="category_id"/>
+				<field name="sequence"/>
+			</tree>
+		</field>
+	</record>
+	
+	<record id="hr_liquidation_rule_form" model="ir.ui.view">
+            <field name="name">hr.liquidation.rule.form</field>
+            <field name="model">hr.liquidation.rule</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Reglas de Liquidación">
+                    <group col="6" colspan="6">
+                       <field name="name"/>
+                       <field name="code" select="1"/>
+                       <field name="category_id"/>
+                       <field name="sequence" />
+                       <field name="active"/>
+                       <field name="appears_on_payslip"/>
+                    </group>
+                    <notebook colspan="6">
+                        <page string="General">
+                                <group col="4" colspan="6">
+                                    <separator colspan="4" string="Condiciones"/>
+                                    <field name="condition_select"/><newline/>
+                                    <field name="condition_python" attrs="{'invisible':[('condition_select','&lt;&gt;','python')], 'required': [('condition_select','=','python')]}" colspan="4"/> <newline/>
+                                    <field name="condition_range" attrs="{'invisible':[('condition_select','&lt;&gt;','range')], 'required':[('condition_select','=','range')]}"/><newline/>
+                                    <field name="condition_range_min" colspan="2" attrs="{'invisible':[('condition_select','&lt;&gt;','range')], 'required':[('condition_select','=','range')]}"/><newline/>
+                                    <field name="condition_range_max" colspan="2" attrs="{'invisible':[('condition_select','&lt;&gt;','range')], 'required':[('condition_select','=','range')]}"/><newline/>
+                                    <separator colspan="4" string="Cómputo"/>
+                                    <field name="amount_select"/><newline/>
+                                    <field name="amount_percentage_base" attrs="{'invisible':[('amount_select','&lt;&gt;','percentage')], 'required': [('amount_select','=','percentage')]}"/><newline/>
+                                    <field name="quantity" attrs="{'invisible':[('amount_select','=','code')], 'required':[('amount_select','!=','code')]}"/><newline/>
+                                    <field name="amount_fix"  attrs="{'invisible':[('amount_select','&lt;&gt;','fix')], 'required':[('amount_select','=','fix')]}"/><newline/>
+                                    <field name="amount_percentage" attrs="{'invisible':[('amount_select','&lt;&gt;','percentage')], 'required':[('amount_select','=','percentage')]}"/>
+                                    <field colspan="4" name="amount_python_compute" attrs="{'invisible':[('amount_select','&lt;&gt;','code')], 'required':[('amount_select','=','code')]}"/>
+                                    <!--separator colspan="4" string="Company contribution"/>
+                                    <field name="register_id"/-->
+                                </group>
+                        </page>
+                        <!--page string="Child Rules">
+                           <field name="parent_rule_id"/>
+                           <separator colspan="4" string="Children definition"/>
+                           <field colspan="4" name="child_ids" nolabel="1"/>
+                        </page-->
+                           <!--page string="Inputs">
+                                <field name="input_ids" colspan="4" nolabel="1" mode="tree, form">
+                                    <tree string="Input Data" editable="bottom">
+                                        <field name="name"/>
+                                        <field name="code"/>
+                                    </tree>
+                                </field>
+                           </page-->
+                        <page string="Descripción">
+                            <field name="note" colspan="4" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_hr_liquidation_rule_filter" model="ir.ui.view">
+            <field name="name">hr.liquidation.rule.select</field>
+            <field name="model">hr.liquidation.rule</field>
+            <field name="type">search</field>
+            <field name="arch" type="xml">
+                <search string="Search Salary Rule">
+                    <group col="8" colspan="4">
+                        <field name="name"/>
+                        <field name="code" select="1"/>
+                        <field name="category_id"/>
+                        <field name="condition_range_min"/>
+                    </group>
+                    <newline/>
+                    <group col="8" colspan="4" expand="0" string="Agrupar por...">
+                        <filter string="Categoria" icon="terp-folder-yellow" name="head" context="{'group_by':'category_id'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+        
+        <record id="action_liquidation_rule" model="ir.actions.act_window">
+            <field name="name">Reglas de Liquidacion</field>
+            <field name="res_model">hr.liquidation.rule</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <menuitem id="menu_action_hr_liquidation_rule" string="Reglas de Liquidación" action="action_liquidation_rule" parent="menu_hr_liquidation_configuration"/>
+	  
+	
+    <!-- Estructura de Liquidacion -->
+	  
+	<record model="ir.ui.view" id="view_hr_liquidation_structure_form">
+	  <field name="name">hr.liquidation.structure.form</field>
+	  <field name="model">hr.liquidation.structure</field>
+	  <field name="type">form</field>
+	  <field name="arch" type="xml">
+		<form string="Estructura de Liquidación">
+		  <group colspan="4" col="6">
+			<field name="name" required="1" colspan="4"/>
+			<field name="active" colspan="2"/>
+			<notebook colspan="6">
+				<page string="Reglas">
+					<field name="rule_ids" colspan="4" nolabel="1"/>
+				</page>
+				<page string="Notas">
+					<field name="note" colspan="4" nolabel="1"/>
+				</page>
+			</notebook>
+		  </group>
+		</form>
+	  </field>
+	</record>
+	
+	<record model="ir.ui.view" id="view_hr_liquidation_structure_tree">
+	  <field name="name">hr.liquidation.structure.tree</field>
+	  <field name="model">hr.liquidation.structure</field>
+	  <field name="type">tree</field>
+	  <field name="arch" type="xml">
+		<tree string="Estructura de Liquidación">
+		  <field name="name" select="1"/>
+		</tree>
+	  </field>
+	</record>
+	
+	<record id="action_hr_liquidation_structure" model="ir.actions.act_window">
+	  <field name="name">Estructura de Liquidación</field>
+	  <field name="res_model">hr.liquidation.structure</field>
+	  <field name="view_type">form</field>
+	  <field name="view_mode">tree,form</field>
+	</record>
+	
+	<record id="view_hr_liquidation_structure_filter" model="ir.ui.view">
+	  <field name="name">hr.liquidation.structure.search</field>
+	  <field name="model">hr.liquidation.structure</field>
+	  <field name="type">search</field>
+	  <field name="arch" type="xml">
+	    <search string="Estructura de Liquidación">
+	      <group col='10' colspan='4'>
+	        <filter icon="kanban-stop" name="desactivados" string="Desactivados" domain="[('active','=',False)]" separator="1"/>
+	        <separator orientation="vertical"/>
+			<field name="name"/>
+	      </group>
+	    </search>
+	  </field>
+	</record>
+	
+	
+	<menuitem id="menu_hr_liquidation_structure"
+		  action="action_hr_liquidation_structure"
+		  parent="menu_hr_liquidation_configuration"
+		  name="Estructuras"/>
+		  
+    <!-- Formulario de Liquidacion -->
+
+	<record model="ir.ui.view" id="view_hr_liquidation_compute_form">
+    	<field name="name">hr.liquidation.compute.form</field>
+    	<field name="model">hr.liquidation.compute</field>
+    	<field name="type">form</field>
+    	<field name="arch" type="xml">
+    		<form string="Liquidación de empleado">
+    			<header>
+                    <button name="calcular_liquidacion" type="object" icon="gtk-execute" string="Calcular" states="draft"/>
+                    <button name="cerrar_liquidacion" type="object" icon="gtk-execute" string="Cerrar" states="draft"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                	<group colspan="4" col="6">
+                		<!--field name="name" required="1" colspan="3"/-->
+                		<field name="contract_id" required="1" colspan="3"/>
+                		<field name="employee_id" colspan="3"/>
+                		<field name="structure_id" required="1" colspan="3"/>
+                		<field name="date" required="1" colspan="3"/>
+                		<field name="description" nolabel="1" placeholder="Descripción" colspan="6"/>
+                	</group>
+                	<notebook colspan="6">
+                		<page string="Detalle" col="4">
+                			<group colspan="4" col="4">
+	                			<field name="mujer_embarazada" colspan="2"/>
+	                			<field name="empleador_iess" colspan="2"/>
+	                			<field name="jefe_sindical" colspan="2" invisible="1"/>
+	                		</group>
+                			<field name="input_line_ids" colspan="4" nolabel="1">
+                				<tree string="Entradas" editable="bottom">
+                					<field name="name"/>
+                					<field name="code"/>
+                					<field name="amount"/>
+                					<field name="sequence" invisible="True"/>
+                				</tree>
+                				<form string="Entradas">
+                					<group>
+                						<field name="name" select="1"/>
+                						<field name="code" select="1"/>
+                						<field name="payslip_id"/>
+                						<field name="sequence"/>
+                						<field name="amount"/>
+                					</group>
+                				</form>
+                			</field>
+                			<field name="line_ids" nolabel="1" readonly="1">
+                				<tree editable="bottom" string="Detalle de Liquidación" colors="blue:total == 0">
+                					<field name="name"/>
+                					<field name="code"/>
+                					<field name="category_id"/>
+                					<field name="sequence" invisible="1"/>
+                					<field name="quantity"/>
+                					<field name="rate"/>
+                					<field name="amount"/>
+                					<field name="total"/>
+                				</tree>
+                				<form string="Detalle de Liquidación">
+                					<group>
+                						<field name="name" select="1"/>
+                						<field name="code" select="1"/>
+                						<field name="category_id"/>
+                						<field name="sequence" groups="base.group_extended"/>
+                						<field name="quantity"/>
+                						<field name="rate"/>
+                						<field name="amount"/>
+                						<field name="total"/>
+                						<field name="salary_rule_id" groups="base.group_extended"/>
+                					</group>
+                				</form>
+                			</field>
+                		</page>
+                		<!--page string="Detalle del cálculo">
+                			<field name="line_ids" nolabel="1" readonly="1">
+                				<tree editable="bottom" colors="blue:total == 0">
+                					<field name="name"/>
+                					<field name="code"/>
+                					<field name="category_id"/>
+                					<field name="sequence" invisible="1"/>
+                					<field name="quantity"/>
+                					<field name="rate"/>
+                					<field name="amount"/>
+                					<field name="total"/>
+                				</tree>
+                				<form string="Linea de Liquidación">
+                					<group>
+                						<field name="name" select="1"/>
+                						<field name="code" select="1"/>
+                						<field name="category_id"/>
+                						<field name="sequence" groups="base.group_extended"/>
+                						<field name="quantity"/>
+                						<field name="rate"/>
+                						<field name="amount"/>
+                						<field name="total"/>
+                						<field name="salary_rule_id" groups="base.group_extended"/>
+                					</group>
+                				</form>
+                			</field>
+                		</page-->
+                	</notebook>
+                </sheet>
+    		</form>
+    	</field>
+    </record>
+	
+	<record model="ir.ui.view" id="view_hr_liquidation_compute_tree">
+	  <field name="name">hr.liquidation.compute.tree</field>
+	  <field name="model">hr.liquidation.compute</field>
+	  <field name="type">tree</field>
+	  <field name="arch" type="xml">
+		<tree string="Liquidación de empleado">
+		  <!--field name="name"/-->
+		  <field name="date"/>
+		  <field name="contract_id"/>
+		  <field name="employee_id"/>
+		  <field name="structure_id"/>
+		  <field name="state"/>
+		</tree>
+	  </field>
+	</record>
+	
+	<record id="action_hr_liquidation_compute" model="ir.actions.act_window">
+	  <field name="name">Liquidación de empleado</field>
+	  <field name="res_model">hr.liquidation.compute</field>
+	  <field name="view_type">form</field>
+	  <field name="view_mode">tree,form</field>
+	</record>
+	
+	<record id="view_hr_liquidation_compute_filter" model="ir.ui.view">
+	  <field name="name">hr.liquidation.compute.search</field>
+	  <field name="model">hr.liquidation.compute</field>
+	  <field name="type">search</field>
+	  <field name="arch" type="xml">
+	    <search string="Liquidación de empleado">
+	      <group col='10' colspan='4'>
+	        <!--filter icon="kanban-stop" name="desactivados" string="Desactivados" domain="[('active','=',False)]" separator="1"/>
+	        <separator orientation="vertical"/-->
+			<!--field name="name"/-->
+			<field name="date"/>
+			<field name="contract_id"/>
+			<field name="employee_id"/>
+			<field name="structure_id"/>
+			<field name="state"/>
+			<field name="description"/>
+			<newline/>
+			<group expand="1" string="Agrupar por..." colspan="4" col="10">
+				<filter name="group_structure_id" string="Motivo de salida" icon="terp-stock_symbol-selection" context="{'group_by':'structure_id'}"/>
+				<!--filter name="group_contract_id" string="Contrato" icon="terp-personal" context="{'group_by':'contract_id'}"/-->
+				<filter name="group_state" string="Estado" icon="terp-stock_effects-object-colorize" context="{'group_by':'state'}"/>
+        	</group>
+	      </group>
+	    </search>
+	  </field>
+	</record>
+	
+	
+	<menuitem id="menu_hr_liquidation_compute"
+		  action="action_hr_liquidation_compute"
+		  parent="menu_hr_desvinculation_root"
+		  name="Liquidación de personal"/>
+
+
+</data>
+</openerp>

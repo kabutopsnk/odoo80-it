@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<openerp>
+	<data>
+
+    <record id="view_wizard_italiana_bancos" model="ir.ui.view">
+        <field name="name">Exportar Archivos Bancarios</field>
+        <field name="model">hr.italiana.bancos</field>
+        <field name="type">form</field>
+        <field name="arch" type="xml">
+            <form string="Exportar Archivos Bancarios">
+                <label colspan="4" nolabel="1" string="Este asistente le permite exportar los archivos de los Bancos"/>	 
+                <group>
+                    <field name="datas_a0" filename="datas_a0_fname" readonly="1" colspan="1"/>
+                    <field name="datas_a0_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_b0" filename="datas_b0_fname" readonly="1" colspan="1"/>
+                    <field name="datas_b0_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_c0" filename="datas_c0_fname" readonly="1" colspan="1"/>
+                    <field name="datas_c0_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_a1" filename="datas_a1_fname" readonly="1" colspan="1"/>
+                    <field name="datas_a1_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_b1" filename="datas_b1_fname" readonly="1" colspan="1"/>
+                    <field name="datas_b1_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_c1" filename="datas_c1_fname" readonly="1" colspan="1"/>
+                    <field name="datas_c1_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_a2" filename="datas_a2_fname" readonly="1" colspan="1"/>
+                    <field name="datas_a2_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_b2" filename="datas_b2_fname" readonly="1" colspan="1"/>
+                    <field name="datas_b2_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_c2" filename="datas_c2_fname" readonly="1" colspan="1"/>
+                    <field name="datas_c2_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_a3" filename="datas_a3_fname" readonly="1" colspan="1"/>
+                    <field name="datas_a3_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_b3" filename="datas_b3_fname" readonly="1" colspan="1"/>
+                    <field name="datas_b3_fname" readonly="1" invisible="1" colspan="1"/>
+                    <field name="datas_c3" filename="datas_c3_fname" readonly="1" colspan="1"/>
+                    <field name="datas_c3_fname" readonly="1" invisible="1" colspan="1"/>
+                </group>
+                <group>
+                    <button name="generar_archivo" string="Generar" type="object" icon="gtk-execute"/>
+                    <button special="cancel" string="Cancelar" type="object" icon="gtk-cancel"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <act_window
+        id="act_export_italiana_bancos"
+        name="Archivos Bancarios"
+        res_model="hr.italiana.bancos"
+        target="new"
+        view_mode="form"
+        src_model="hr.payslip.run"/>
+
+	</data>
+</openerp>

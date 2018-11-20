@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+
+        <!-- HR.ASPIRANTES -->
+        <record model="ir.ui.view" id="view_hr_aspirante_tree">
+        	<field name="name">hr.aspirante.tree</field>
+        	<field name="model">hr.aspirante</field>
+        	<field name="type">tree</field>
+        	<field name="arch" type="xml">
+        		<tree string="Aspirantes">
+        			<field name="name"/>
+        			<field name="name_related"/>
+        			<field name="personal_email"/>
+        			<field name="home_phone"/>
+        			<field name="personal_mobile"/>
+        		</tree>
+        	</field>
+        </record>
+	  
+        <record model="ir.ui.view" id="view_hr_aspirante_form">
+            <field name="name">hr.aspirante.form</field>
+            <field name="model">hr.aspirante</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Aspirantes" version="7.0">
+                	<header>
+                		<button name="contratar_aspirante" states="draft" string="Contratar" type="object" icon="gtk-execute" groups="base.group_hr_manager" confirm="Esta seguro que desea registrar este aspirante como empleado?"/>
+                		<field name="state" widget="statusbar"/>
+                	</header>
+                	<sheet>
+                		<group>
+		                	<group>
+		                		<field name="id_type"/>
+		                		<field name="name"/>
+		                		<field name="employee_lastname"/>
+		                		<field name="employee_name"/>
+		                		<field name="marital"/>
+		                    </group>
+		                    <group>
+		                		<field name="personal_mobile"/>
+		                		<field name="personal_email"/>
+		                		<field name="address_home_id"/>
+		                		<field name="address_home_n"/>
+		                		<field name="home_phone"/>
+		                    </group>
+	                    </group>
+	                    <notebook>
+	                    	<page string="Resultados">
+	                    		<field name="resultados" nolabel="1">
+	                    			<tree string="Resultados" editable="bottom">
+	                    				<field name="name"/>
+	                    				<field name="check"/>
+	                    				<field name="notes"/>
+	                    			</tree>
+	                    		</field>
+	                    	</page>
+	                    	<page string="Formación Académica">
+	                    		<field name="academic_ids" nolabel="1">
+			<tree string="Formación Académica">
+		  		<field name="name"/>
+		  		<field name="institute"/>
+		  		<field name="level_id"/>
+		  		<field name="area_id"/>
+		    </tree>
+			<form string="Formación Académica">
+				<group>
+				    <group>
+			  		<field name="name" required="1"/>
+			  		<field name="institute" required="1"/>
+			  		<field name="level_id" required="1"/>
+			  		<field name="area_id" required="1"/>
+		  		    </group>
+				    <group>
+			  		<field name="country_id" required="1"/>
+			  		<field name="date_start" required="1"/>
+			  		<field name="date_stop" required="1"/>
+			  		<field name="honores" required="1"/>
+			  		<field name="code"/>
+		  		    </group>
+		  		</group>
+		    </form>
+	                    		</field>
+	                    	</page>
+	                    	<page string="Cursos y Capacitaciones">
+	                    		<field name="courses_ids" nolabel="1">
+			<tree string="Cursos y Capacitaciones">
+		  		<field name="name"/>
+		  		<field name="institute"/>
+		  		<field name="duration"/>
+		  		<field name="area_id"/>
+		    </tree>
+			<form string="Cursos y Capacitaciones">
+				<group>
+				    <group>
+			  		<field name="name" required="1"/>
+			  		<field name="institute" required="1"/>
+			  		<field name="area_id" required="1"/>
+				    </group>
+				    <group>
+			  		<field name="duration" required="1"/>
+			  		<field name="type" required="1"/>
+			  		<field name="country_id" required="1"/>
+			  		<field name="city" required="1"/>
+			  		<field name="date" required="1"/>
+			  		<field name="date_end" required="1"/>
+			  		<!--field name="city_id" required="1" domain="[('country_id','=',country_id)]"/-->
+				    </group>
+		  		</group>
+		    </form>
+	                    		</field>
+	                    	</page>
+	                    	<page string="Referencias Personales">
+	                    		<field name="reference_lines" nolabel="1">
+	                    			<tree string="Proyección de gastos personales" editable="bottom">
+	                    				<field name="name"/>
+	                    				<field name="phone"/>
+	                    				<field name="email"/>
+	                    			</tree>
+	                    		</field>
+	                    	</page>
+	                    	<page string="Experiencia Laboral">
+	                    		<field name="experience_lines" nolabel="1">
+	                    			<tree string="Experiencia Laboral">
+	                    				<field name="institution"/>
+	                    				<field name="job"/>
+	                    				<field name="sector_id"/>
+	                    				<field name="date_start"/>
+	                    				<field name="date_stop"/>
+	                    			</tree>
+	                    			<form string="Experiencia Laboral">
+	                    				<group>
+	                    					<group>
+	                    						<field name="institution" required="1"/>
+	                    						<field name="job" required="1"/>
+	                    						<field name="sector_id" required="1"/>
+	                    						<field name="description" required="1"/>
+	                    					</group>
+	                    					<group>
+	                    						<field name="experience_institution_id" required="1"/>
+	                    						<field name="experience_job_id" required="1"/>
+	                    						<field name="date_start" required="1"/>
+	                    						<field name="date_stop" required="1"/>
+	                    					</group>
+	                    					<group string="Referencia">
+	                    						<field name="reference_name" required="1"/>
+	                    						<field name="reference_institution" required="1"/>
+	                    						<field name="reference_job" required="1"/>
+	                    						<field name="reference_phone" required="1"/>
+	                    					</group>
+	                    				</group>
+	                    			</form>
+	                    		</field>
+	                    	</page>
+	                    </notebook>
+                    </sheet>
+                </form>
+            </field>				
+        </record>
+
+        <record id="action_hr_aspirante" model="ir.actions.act_window">
+            <field name="name">Aspirantes</field>
+            <field name="res_model">hr.aspirante</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <menuitem parent="hr.menu_hr_main" id="menu_hr_aspirante" action="action_hr_aspirante"/>
+
+
+    </data>
+</openerp>

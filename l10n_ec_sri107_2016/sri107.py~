@@ -1,0 +1,627 @@
+# -*- encoding: utf-8 -*-
+##############################################################################
+#
+#    OpenERP, Open Source Management Solution
+#    Copyright (C) 2011 OpenERP SA (<http://openerp.com>).
+#    Application developed by: Carlos Andrés Ordóñez P.
+#    Country: Ecuador
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+##############################################################################
+
+from osv import osv,fields
+from dateutil import parser
+import time
+
+from xlrd import open_workbook
+from xlutils.copy import copy
+import os
+from lxml import etree
+from time import strftime
+from string import upper
+import base64
+import pooler
+import StringIO
+import netsvc
+import addons
+
+import sys
+import zipfile
+
+class sri2016_107_general(osv.osv):
+    _name = "sri2016.107.general"
+    _columns = {
+                'name': fields.char(u'Descripcion', size=100, required=True),
+                'date_start': fields.date(u'Desde', required=True),
+                'date_end': fields.date(u'Hasta', required=True),
+                'line_ids': fields.one2many('sri2016.107.individual', 'head_id', u'Detalle'),
+                'archivo_rdep': fields.binary(u'Archivo RDEP', help="RDEP en formato XML"),
+                'name_rdep': fields.char(u'Archivo RDEP', size=100, required=True),
+                'directorio': fields.char(u'Directorio destino', size=50),
+                'state': fields.selection([('draft',u'Borrador'),('done',u'Aprobado'),('cancel',u'Cancelado')],u'Estado'),
+                }
+    
+    _defaults = {
+                 'name_rdep': 'rdep.xml',
+                 'state': 'draft',
+                 }
+    
+    def crear_lineas(self, cr, uid, ids, context=None):
+        obj_contract = self.pool.get("hr.contract")
+        obj_formulario = self.pool.get("sri2016.107.individual")
+        #archivo del formulario 107
+        xls_path = addons.get_module_resource('l10n_ec_sri2016_107','xls','Formulario 107.xls')
+        #image_path = addons.get_module_resource('l10n_ec_sri2016_107','xls','sri2016_logo.bmp')
+        rb = open_workbook(xls_path,formatting_info=True)
+        #print xls_path
+        
+        for asistente in self.browse(cr, uid, ids, context):
+	    ids_contract1 = obj_contract.search(cr, uid, [('date_end','=', False),('date_start','<=',asistente.date_end)])
+	    ids_contract2 = obj_contract.search(cr, uid, [('date_end','>=',asistente.date_start),('date_end','<=',asistente.date_end),('date_start','<=',asistente.date_end)])
+	    ids_contract = list(set(ids_contract1 + ids_contract2))
+            #archivo del rdep
+            usuario = self.pool.get('res.users').browse(cr, uid, uid, context)
+            ruc='001'
+            try:
+                ruc = usuario.company_id.ruc
+            except:
+                pass
+            rdep = etree.Element('rdep')
+            etree.SubElement(rdep, 'numRuc').text = ruc.rjust(13,'0')
+            etree.SubElement(rdep, 'anio').text = str(asistente.date_start)[:-6]
+            retRelDep = etree.Element('retRelDep')
+            #directorio para archivos excel sri
+            directorio = os.system("mkdir "+str(asistente.directorio))
+            ids_formularios = obj_formulario.search(cr, uid, [('head_id', '=', asistente.id)])
+            if ids_formularios:
+                obj_formulario.unlink(cr, uid, ids_formularios)
+            for contrato in obj_contract.browse(cr, uid, ids_contract, context):
+                id_formulario = obj_formulario.search(cr, uid, [('field_202','=', contrato.employee_id.id),('head_id','=', asistente.id)], context=context)
+                if id_formulario:
+                    continue
+                id_formulario = obj_formulario.create(cr, uid, {'field_102': str(asistente.date_start)[:-6],
+                                                                'field_202': contrato.employee_id.id,
+                                                                'head_id': asistente.id})
+                obj_formulario.calcular_formulario(cr, uid, [id_formulario], context)
+                
+                for formulario in obj_formulario.browse(cr, uid, [id_formulario], context):
+                    #inicio rdep
+                    
+                    #escritura de datos en el formulario de excel
+                    wb = copy(rb)
+                    ws = wb.get_sheet(0)
+                    
+                    #campo numero
+                    ws.write(0,26,"   No.   " + formulario.codigo)
+                    #ws.insert_bitmap(image_path, 0, 2)
+                    #campo 102
+                    anio = str(formulario.field_102)
+                    ws.write(3,14,anio[:1])
+                    ws.write(3,15,anio[1:2])
+                    ws.write(3,16,anio[2:3])
+                    ws.write(3,17,anio[3:4])
+                    #campo 103
+                    fecha = str(formulario.field_103)
+                    ws.write(4,25,fecha[:1])
+                    ws.write(4,26,fecha[1:2])
+                    ws.write(4,27,fecha[2:3])
+                    ws.write(4,28,fecha[3:4])
+                    ws.write(4,29,fecha[5:6])
+                    ws.write(4,31,fecha[6:7])
+                    ws.write(4,33,fecha[8:9])
+                    ws.write(4,34,fecha[9:10])
+                    #campo 106
+                    ws.write(7,15,formulario.field_106)
+                    #campo 105
+                    if formulario.field_105:
+                        ws.write(7,1,formulario.field_105[:1])
+                        ws.write(7,2,formulario.field_105[1:2])
+                        ws.write(7,3,formulario.field_105[2:3])
+                        ws.write(7,4,formulario.field_105[3:4])
+                        ws.write(7,5,formulario.field_105[4:5])
+                        ws.write(7,6,formulario.field_105[5:6])
+                        ws.write(7,7,formulario.field_105[6:7])
+                        ws.write(7,8,formulario.field_105[7:8])
+                        ws.write(7,9,formulario.field_105[8:9])
+                        ws.write(7,10,formulario.field_105[9:10])
+                    #campo 201
+                    ws.write(10,1,contrato.employee_id.name)
+                    #campo 202
+                    ws.write(10,15,contrato.employee_id.name_related)
+                    #campos liquidacion de impuestos
+                    ws.write(13,21,str("%0.2f" % abs(formulario.field_301)))
+                    ws.write(14,21,str("%0.2f" % abs(formulario.field_303)))
+                    ws.write(15,21,str("%0.2f" % abs(formulario.field_305)))
+                    ws.write(16,21,str("%0.2f" % abs(formulario.field_307)))
+                    ws.write(17,21,str("%0.2f" % abs(formulario.field_311)))
+                    ws.write(18,21,str("%0.2f" % abs(formulario.field_313)))
+                    ws.write(19,21,str("%0.2f" % abs(formulario.field_315)))
+                    ws.write(20,21,str("%0.2f" % abs(formulario.field_317)))
+                    ws.write(21,21,str("%0.2f" % abs(formulario.field_351)))
+                    ws.write(22,21,str("%0.2f" % abs(formulario.field_353)))
+                    ws.write(23,21,str("%0.2f" % abs(formulario.field_361)))
+                    ws.write(24,21,str("%0.2f" % abs(formulario.field_363)))
+                    ws.write(25,21,str("%0.2f" % abs(formulario.field_365)))
+                    ws.write(26,21,str("%0.2f" % abs(formulario.field_367)))
+                    ws.write(27,21,str("%0.2f" % abs(formulario.field_369)))
+                    ws.write(28,21,str("%0.2f" % abs(formulario.field_371)))
+                    ws.write(29,21,str("%0.2f" % abs(formulario.field_373)))
+                    ws.write(30,21,str("%0.2f" % abs(formulario.field_381)))
+                    ws.write(31,21,str("%0.2f" % abs(formulario.field_399)))
+                    ws.write(32,21,str("%0.2f" % abs(formulario.field_401)))
+                    ws.write(33,21,str("%0.2f" % abs(formulario.field_403)))
+                    ws.write(34,21,str("%0.2f" % abs(formulario.field_405)))
+                    ws.write(35,21,str("%0.2f" % abs(formulario.field_407)))
+                    ws.write(36,21,str("%0.2f" % abs(formulario.field_349)))
+                    
+                    #almacenamiento de datos del formulario en excel
+                    
+                    nombre = str(asistente.directorio) + "/" + str(formulario.field_102) + " - " + contrato.employee_id.name_related + ".xls"
+                    wb.save(nombre)
+                    out = open(nombre,"rb").read().encode("base64")
+                    #obj_formulario.write(cr, uid, formulario.id, {'archivo':out, 'name':str(formulario.field_102) + " - " + contrato.employee_id.name_related + ".xls"})
+                    obj_formulario.write(cr, uid, formulario.id, {'name':str(formulario.field_102) + " - " + contrato.employee_id.name_related + ".xls"})
+                    
+                    #creacion rdep
+                    tipidret='c'
+                    #if formulario.field_202.id_type=='c':
+                    #    tipidret='2'
+                    #rdep = etree.Element('rdep')
+		    #saber si es discapacitado
+		    discapacitado = '01'
+	            tipoIDdiscapacitado = 'N'
+		    iddiscapacitado = '999'
+		    disability_percent = 0
+		    if formulario.field_202.disabled==True and formulario.field_202.disability_percent>=40:
+			discapacitado = '02'		    
+		        tipoIDdicapacitado = 'C'
+		        disability_percent = int(abs(formulario.field_202.disability_percent))
+			#iddiscapacitado = formulario.field_202.name
+		    
+                    datRetRelDep = etree.Element('datRetRelDep')
+
+                    empleado = etree.Element('empleado')
+		    etree.SubElement( empleado, 'tipIdRet' ).text = 'C'
+                    etree.SubElement( empleado, 'idRet' ).text = formulario.field_202.name
+                    etree.SubElement( empleado, 'apellidoTrab' ).text = formulario.field_202.employee_lastname
+                    etree.SubElement( empleado, 'nombreTrab' ).text = formulario.field_202.employee_name
+                    etree.SubElement( empleado, 'estab' ).text = '001'
+		    etree.SubElement( empleado, 'residenciaTrab').text = '01'
+                    etree.SubElement( empleado, 'paisResidencia' ).text = '593'		   
+                    etree.SubElement( empleado, 'aplicaConvenio' ).text = 'NA'
+                    etree.SubElement( empleado, 'tipoTrabajDiscap' ).text = discapacitado		                     
+                    #etree.SubElement( empleado, 'porcentajeDiscap' ).text = str("%0.2f" % abs(formulario.field_202.disability_percent))
+                    etree.SubElement( empleado, 'porcentajeDiscap' ).text = str(disability_percent)
+                    etree.SubElement( empleado, 'tipIdDiscap' ).text = tipoIDdiscapacitado
+                    etree.SubElement( empleado, 'idDiscap' ).text = iddiscapacitado
+                    datRetRelDep.append(empleado)
+
+                    etree.SubElement( datRetRelDep, 'suelSal' ).text = str("%0.2f" % abs(formulario.field_301))
+                    etree.SubElement( datRetRelDep, 'sobSuelComRemu' ).text = str("%0.2f" % abs(formulario.field_303)) 
+                    etree.SubElement( datRetRelDep, 'partUtil' ).text = str("%0.2f" % abs(formulario.field_305))
+                    etree.SubElement( datRetRelDep, 'intGrabGen' ).text = str("%0.2f" % abs(formulario.field_307))
+		    etree.SubElement( datRetRelDep, 'impRentEmpl' ).text = str("%0.2f" % abs(formulario.field_381))
+                    etree.SubElement( datRetRelDep, 'decimTer' ).text = str("%0.2f" % abs(formulario.field_311))
+                    etree.SubElement( datRetRelDep, 'decimCuar' ).text = str("%0.2f" % abs(formulario.field_313))
+                    etree.SubElement( datRetRelDep, 'fondoReserva' ).text = str("%0.2f" % abs(formulario.field_315))
+                    etree.SubElement( datRetRelDep, 'salarioDigno' ).text = str("%0.2f" % abs(0))
+                    etree.SubElement( datRetRelDep, 'otrosIngRenGrav' ).text = str("%0.2f" % abs(formulario.field_317))
+                    etree.SubElement( datRetRelDep, 'ingGravConEsteEmpl' ).text = str("%0.2f" % abs(formulario.field_349))
+		    etree.SubElement( datRetRelDep, 'sisSalNet' ).text = str(1)
+                    etree.SubElement( datRetRelDep, 'apoPerIess' ).text = str("%0.2f" % abs(formulario.field_351))
+                    etree.SubElement( datRetRelDep, 'aporPerIessConOtrosEmpls' ).text = str("%0.2f" % abs(formulario.field_353))
+                    #dedcucciones
+                    etree.SubElement( datRetRelDep, 'deducVivienda' ).text = str("%0.2f" % abs(formulario.field_361))
+                    etree.SubElement( datRetRelDep, 'deducSalud' ).text = str("%0.2f" % abs(formulario.field_363))
+                    etree.SubElement( datRetRelDep, 'deducEduca' ).text = str("%0.2f" % abs(formulario.field_365))
+                    etree.SubElement( datRetRelDep, 'deducAliement' ).text = str("%0.2f" % abs(formulario.field_367))
+                    etree.SubElement( datRetRelDep, 'deducVestim' ).text = str("%0.2f" % abs(formulario.field_369))
+                    etree.SubElement( datRetRelDep, 'exoDiscap' ).text = str("%0.2f" % abs(formulario.field_371))
+                    etree.SubElement( datRetRelDep, 'exoTerEd' ).text = str("%0.2f" % abs(formulario.field_373))
+                    etree.SubElement( datRetRelDep, 'basImp' ).text = str("%0.2f" % abs(formulario.field_399))
+                    etree.SubElement( datRetRelDep, 'impRentCaus' ).text = str("%0.2f" % abs(formulario.field_401))
+                    etree.SubElement( datRetRelDep, 'valRetAsuOtrosEmpls' ).text = str("%0.2f" % abs(formulario.field_403))
+                    etree.SubElement( datRetRelDep, 'valImpAsuEsteEmpl' ).text = str("%0.2f" % abs(formulario.field_405))
+                    etree.SubElement( datRetRelDep, 'valRet' ).text = str("%0.2f" % abs(formulario.field_407))
+                    #GUARDAMOS REGISTRO
+                    retRelDep.append(datRetRelDep)
+            rdep.append(retRelDep)
+            file = etree.tostring(rdep, pretty_print=True, encoding='iso-8859-1')
+            buf=StringIO.StringIO()
+            buf.write(file)
+            out=base64.encodestring(buf.getvalue())
+            buf.close()
+            #name = "%s%s.XML" % ("RDEP", strftime("%Y"))
+            self.write(cr, uid, ids, {'archivo_rdep': out})
+        return True
+    
+sri2016_107_general()
+
+
+
+
+#class wizard_107(osv.osv_memory):
+class sri2016_107_individual(osv.osv):
+    _name = "sri2016.107.individual"
+    
+    def get_employee(self, cr, uid, context=None):
+        return context['active_id']
+    
+    _columns = {
+                'name': fields.char('Descripción', size=50),
+                'codigo': fields.char('Numero', size=50),
+                'date_start': fields.char('Numero', size=50),
+                'date_end': fields.char('Numero', size=50),
+                'codigo': fields.char('Numero', size=50),
+                'head_id': fields.many2one('sri2016.107.general', 'Formulario Empresa', ondelete="cascade"),
+                #'employee_id': fields.many2one('hr.employee', 'Empleado'),
+                'field_102': fields.char('Ejercicio Fiscal - 102', size=10, required=True),
+                #'field_102': fields.many2one('hr.contract.wage.type.period', 'Ejercicio Fiscal - 102'),
+                'field_103': fields.date('Fecha - 103'),
+                'field_105': fields.char('Empleador - RUC - 105', size=13),
+                'field_106': fields.char('Empleador - Nombre - 106', size=50),
+                'field_201': fields.char('Empleado - Cedula o Pasaporte - 201', size=15),
+                #'field_202': fields.char('Empleado - Nombre - 202', size=50),
+                'field_202': fields.many2one('hr.employee', 'Empleado - Nombre - 202', required=True),
+                'field_301': fields.float('Sueldos y salarios - 301'),
+                'field_303': fields.float('Sobresueldos, comisiones, bonos y otras remuneraciones gravadas - 303'),
+                'field_305': fields.float('Participacion de utilidades - 305'),
+                'field_307': fields.float('Ingresos gravados generados con otros empleadores - 307'),
+                #'field_309': fields.float('Fondos de reserva - 309'),
+                'field_311': fields.float('Decimo Tercero - 311'),
+                'field_313': fields.float('Decimo Cuarto - 313'),
+                'field_315': fields.float('Fondo de Reserva - 315'),
+                'field_317': fields.float('Otros ingresos en relacion de dependencia que no constituyen renta gravada - 317'),
+                'field_351': fields.float('Aporte Personal IESS con este empleador - 351'),
+                'field_353': fields.float('Aporte Personal IESS con otros Empleadores - 353'),
+                'field_361': fields.float('Deduccion gastos personales - Vivienda - 361'),
+                'field_363': fields.float('Deduccion gastos personales - Salud - 363'),
+                'field_365': fields.float('Deduccion gastos personales - Educacion - 365'),
+                'field_367': fields.float('Deduccion gastos personales - Alimentacion - 367'),
+                'field_369': fields.float('Deduccion gastos personales - Vestimenta - 369'),
+                'field_371': fields.float('Exoneracion por discapacidad - 371'),
+                'field_373': fields.float('Exoneracion por tercera edad - 373'),
+                'field_381': fields.float('Impuesto a la renta asumido por este empleador - 381'),
+                'field_399': fields.float('Base imponible Gravada - 399'),
+                'field_401': fields.float('Impuesto a la renta causado - 401'),
+                'field_403': fields.float('Impuesto a la renta retenido y asumido por empleadores durante el periodo declarado - 403'),
+                'field_405': fields.float('Impuesto a la renta asumido por este empleador - 405'),
+                'field_407': fields.float('Impuesto a la renta retenido al trabajador por este empleador - 407'),
+                'field_349': fields.float('Ingresos gravados con este empleador - 349'),
+                'detalle': fields.text('Detalle'),
+                'archivo': fields.binary('Archivo', readonly=True),
+                #'archivo_fname': fields.char('Nombre del Archivo', readonly=True, size=100),
+                'state': fields.selection([('draft','Borrador'),('done','Aprobado'),('cancel','Cancelado')],'Estado'),
+                }
+    
+    _defaults = {
+                 #'employee_id': get_employee,
+                 #'field_103': time.strftime('%Y-%m-%d'),
+                 'field_102': '2016',
+                 'state': 'draft',
+                 }
+    
+    def create(self, cr, uid, values, context={}):
+        values['codigo'] = self.pool.get('ir.sequence').get(cr, uid, 'sri.107')
+        return super(sri2016_107_individual, self).create(cr, uid, values, context=context)
+
+    def calcular_exportar(self, cr, uid, ids, context=None):
+        self.calcular_formulario(cr, uid, ids, context)
+        directorio = os.system("mkdir formularios107")
+        return self.crear_xls107(cr, uid, ids, context=context)
+
+    def calcular_formulario(self, cr, uid, ids, context=None):
+        #obj_period = self.pool.get('hr.contract.wage.type.period.line')
+        tabla_pool = self.pool.get('hr.sri.taxable')
+        line_pool = self.pool.get('hr.sri.taxable.line')
+        #obj_provision = self.pool.get('hr.provision.line')
+        obj_dec_tercer = self.pool.get('hr.dec.tercer.line')
+        obj_dec_cuarto = self.pool.get('hr.dec.cuarto.line')
+        obj_utilidades = self.pool.get('hr.utilities.line')
+        obj_projection = self.pool.get('hr.employee.projection')
+        obj_payslip = self.pool.get('hr.payslip')
+        obj_renta = self.pool.get('hr.employee.profit')
+        
+        usuario = self.pool.get('res.users').browse(cr, uid, uid, context)
+        
+        for formulario in self.browse(cr, uid, ids, context=context):
+            if formulario.head_id:
+                fecha_inicio = formulario.head_id.date_start
+                fecha_fin = formulario.head_id.date_end
+            else:
+                fecha_inicio = formulario.field_102 + "-01-01"
+                fecha_fin = formulario.field_102 + "-12-31"
+            datos = {#'field_103': time.strftime('%Y-%m-%d'),
+                     'field_105': usuario.company_id.ruc,
+                     'field_106': usuario.company_id.name,
+                     'field_201': formulario.field_202.name,
+                     'field_301': 0.0,
+                     'field_303': 0.0,
+                     'field_305': 0.0,
+                     'field_307': 0.0,
+                     'field_311': 0.0,
+                     'field_313': 0.0,
+                     'field_315': 0.0,
+                     'field_317': 0.0,
+                     'field_351': 0.0,
+                     'field_353': 0.0,
+                     'field_361': 0.0,
+                     'field_363': 0.0,
+                     'field_365': 0.0,
+                     'field_367': 0.0,
+                     'field_369': 0.0,
+                     'field_371': 0.0,
+                     'field_373': 0.0,
+                     'field_381': 0.0,
+                     'field_399': 0.0,
+                     'field_401': 0.0,
+                     'field_403': 0.0,
+                     'field_405': 0.0,
+                     'field_407': 0.0,
+                     'field_349': 0.0,
+                     'detalle': '',
+                     }
+            #MIGRAR RUBROS ANTERIORES
+            try:
+                obj_extras = self.pool.get('sri2016.107.rubro')
+                ids_extras = obj_extras.search(cr, uid, [('date','>=',fecha_inicio),
+                                                         ('date','<=',fecha_fin),
+                                                         ('employee_id','=',formulario.field_202.id)])
+                for extra in obj_extras.browse(cr, uid, ids_extras):
+                    datos[extra.casillero] = datos[extra.casillero] + extra.valor
+            except:
+                pass
+            #period_ids = obj_period.search(cr, uid, [('period_id','=',formulario.field_102.id)])
+            payslip_ids = obj_payslip.search(cr, uid, [('employee_id','=',formulario.field_202.id),
+                                                       ('date_from','>=',fecha_inicio),
+                                                       ('date_to','<=',fecha_fin),
+                                                       ('payroll_type','=','monthly')], context=context)
+            for payslip in obj_payslip.browse(cr, uid, payslip_ids, context=context):
+                    for linea in payslip.line_ids:
+                        if (linea.code == 'BASE'):
+                            datos['field_301'] = datos['field_301'] + linea.total
+                            datos['detalle'] = datos['detalle'] + '\n' + payslip.date_to + ' - 301 - SUELDO: ' + str(linea.total) 
+                        if linea.category_id.code=='APT' and ((linea.code == 'VACS') or (linea.code == 'VACS_EXTRA') or (linea.code == 'VAC_NO_UTILIZADAS') or (linea.code == 'VAC_NO_EXTRA')):
+                            datos['field_301'] = datos['field_301'] + linea.total
+                            datos['detalle'] = datos['detalle'] + '\n' + payslip.date_to + ' - 301 - ' + linea.category_id.name + ': ' + str(linea.total)
+                        if linea.category_id.code=='APT' and (linea.code != 'VACS') and (linea.code != 'VACS_EXTRA') and (linea.code != 'VAC_NO_UTILIZADAS') and (linea.code != 'VAC_NO_EXTRA'):
+                            datos['field_303'] = datos['field_303'] + linea.total
+                            datos['detalle'] = datos['detalle'] + '\n' + payslip.date_to + ' - 303 - ' + linea.category_id.name + ': ' + str(linea.total)
+                        if linea.category_id.code=='ING' and linea.code in ('BALIMENTACION','BONOANUAL','BTRANSPORTE','BONO_PRO_CUM','BONO_VAC_NO','BONOVAC'):
+                            datos['field_303'] = datos['field_303'] + linea.total
+                            datos['detalle'] = datos['detalle'] + '\n' + payslip.date_to + ' - 303 - ' + linea.category_id.name + ': ' + str(linea.total)
+                        if (linea.code == 'FRESERVA'):
+                            datos['field_315'] = datos['field_315'] + linea.total
+                            datos['detalle'] = datos['detalle'] + '\n' + payslip.date_to + ' - 315 - ' + linea.category_id.name + ': ' + str(linea.total)
+                        if (linea.code in ('IESS','IESS_PERSONAL')):
+                            datos['field_351'] = datos['field_351'] + linea.total
+                            datos['detalle'] = datos['detalle'] + '\n' + payslip.date_to + ' - 351 - ' + linea.category_id.name + ': ' + str(linea.total)
+                        if (linea.code in ('IMPRENTA','IMP_RENTA')):
+                            datos['field_407'] = datos['field_407'] + linea.total
+                            datos['detalle'] = datos['detalle'] + '\n' + payslip.date_to + ' - 407 - ' + linea.category_id.name + ': ' + str(linea.total)
+            #decimos y utilidades
+            dec_tercer_ids = obj_dec_tercer.search(cr, uid, [('date', '>=', fecha_inicio),
+                                                             ('date', '<=', fecha_fin),
+                                                             ('name', '=', formulario.field_202.id),
+                                                             ('state','=','draft')])
+            #for tercero in obj_dec_tercer.browse(cr, uid, dec_tercer_ids, context):
+            #    datos['field_311'] = datos['field_311'] + tercero.value
+            #    datos['detalle'] = datos['detalle'] + '\n311 - Decimo tercero: ' + str(tercero.value)
+            #dec_cuarto_ids = obj_dec_cuarto.search(cr, uid, [('date', '>=', fecha_inicio),
+            #                                                 ('date', '<=', fecha_fin),
+            #                                                 ('name', '=', formulario.field_202.id),
+            #                                                 ('state','=','draft')])
+            #for cuarto in obj_dec_cuarto.browse(cr, uid, dec_cuarto_ids, context):
+            #    datos['field_313'] = datos['field_313'] + cuarto.value
+            #    datos['detalle'] = datos['detalle'] + '\n313 - Decimo cuarto: ' + str(cuarto.value)
+            #utilidades_ids = obj_utilidades.search(cr, uid, [('date', '>=', fecha_inicio),
+            #                                                 ('date', '<=', fecha_fin),
+            #                                                 ('name', '=', formulario.field_202.id),
+            #                                                 ('state','=','close')])
+            #for utilidad in obj_utilidades.browse(cr, uid, utilidades_ids, context):
+            #    datos['field_305'] = datos['field_305'] + utilidad.valor
+            #    datos['detalle'] = datos['detalle'] + '\n305 - Utilidades: ' + str(utilidad.valor)
+            #proyecciones
+            for proyeccion_anual in formulario.field_202.projection_lines:
+              if proyeccion_anual.date_start>=fecha_inicio and proyeccion_anual.date_stop<=fecha_fin:
+                datos['field_361']=0.0
+                datos['field_363']=0.0
+                datos['field_365']=0.0
+                datos['field_367']=0.0
+                datos['field_369']=0.0
+                datos['field_371']=0.0
+                datos['field_373']=0.0
+                for linea in proyeccion_anual.line_ids:
+                    if linea.name.name=="VIVIENDA":
+                        datos['field_361'] = datos['field_361'] + linea.value
+                        datos['detalle'] = datos['detalle'] + '\n' + proyeccion_anual.name + ' - 361 - Vivienda: ' + str(linea.value)
+                    if linea.name.name=="SALUD":
+                        datos['field_363'] = datos['field_363'] + linea.value
+                        datos['detalle'] = datos['detalle'] + '\n' + proyeccion_anual.name + ' - 363 - Salud: ' + str(linea.value)
+                    if linea.name.name=="EDUCACION":
+                        datos['field_365'] = datos['field_365'] + linea.value
+                        datos['detalle'] = datos['detalle'] + '\n' + proyeccion_anual.name + ' - 365 - Educacion: ' + str(linea.value)
+                    if linea.name.name=="ALIMENTACION":
+                        datos['field_367'] = datos['field_367'] + linea.value
+                        datos['detalle'] = datos['detalle'] + '\n' + proyeccion_anual.name + ' - 367 - Alimentacion: ' + str(linea.value)
+                    if linea.name.name=="VESTIMENTA":
+                        datos['field_369'] = datos['field_369'] + linea.value
+                        datos['detalle'] = datos['detalle'] + '\n' + proyeccion_anual.name + ' - 369 - Vestimenta: ' + str(linea.value)
+                    if linea.name.name=="DISCAPACIDAD":
+                        datos['field_371'] = datos['field_371'] + linea.value
+                        datos['detalle'] = datos['detalle'] + '\n' + proyeccion_anual.name + ' - 371 - Discapacidad: ' + str(linea.value)
+                    if linea.name.name=="TERCERA EDAD":
+                        datos['field_373'] = datos['field_373'] + linea.value
+                        datos['detalle'] = datos['detalle'] + '\n' + proyeccion_anual.name + ' - 373 - Tercera Edad: ' + str(linea.value)
+            #Valor retenido
+            for renta_anual in formulario.field_202.profit_lines:
+              if renta_anual.date_start>=fecha_inicio and renta_anual.date_stop<=fecha_fin:
+                for linea in renta_anual.line_ids:
+                  datos['field_403'] = datos['field_403'] + linea.otros_empleadores_retenido
+                  datos['field_307'] = datos['field_307'] + linea.otros_empleadores
+                  datos['field_353'] = datos['field_353'] + linea.otros_empleadores_iess
+                  if linea.name=='utilidades':
+                    datos['field_305'] = datos['field_305'] + linea.no_proyectar_no_aportable
+                  if linea.name=='decimotercero':
+                    datos['field_311'] = datos['field_311'] + linea.no_proyectar_no_aportable
+                  if linea.name=='decimocuarto':
+                    datos['field_313'] = datos['field_313'] + linea.no_proyectar_no_aportable
+                  if linea.name=='otro':
+                    datos['field_303'] = datos['field_303'] + (linea.proyectar_aportable or 0.0)
+                    datos['field_303'] = datos['field_303'] + (linea.proyectar_no_aportable or 0.0)
+                    datos['field_303'] = datos['field_303'] + (linea.no_proyectar_aportable or 0.0)
+                    datos['field_303'] = datos['field_303'] + (linea.no_proyectar_no_aportable or 0.0)
+            datos['field_399'] = datos['field_301'] + datos['field_303'] + datos['field_305'] + datos['field_307'] - datos['field_351'] - datos['field_353'] - datos['field_361'] - datos['field_363'] - datos['field_365'] - datos['field_367'] - datos['field_369'] - datos['field_371'] - datos['field_373'] + datos['field_381']
+            
+            #calcular meses de trabajo
+            #date_start = parser.parse(formulario.field_202.contract_id.date_start)
+            #date_end_form = parser.parse(formulario.field_103)
+            #dias_contrato = abs(date_end_form - date_start).days
+            #meses = (dias_contrato//30.416) + formulario.field_202.contract_id.meses_ant
+            #meses = (dias_contrato//30.416)
+            #if meses>=12:
+            #    datos['field_353'] = 12
+            #else:
+            #    datos['field_353'] = int(meses)
+            #301+303+305+381
+            datos['field_349'] = datos['field_301'] + datos['field_303'] + datos['field_305'] + datos['field_381']
+            #impuesto a la renta
+            base = datos['field_399']
+            tabla_ids=tabla_pool.search(cr, uid, [('date_start','>=',fecha_inicio),('date_stop','<=',fecha_fin),])
+            if tabla_ids:
+                for tabla in tabla_ids:
+                    linea_ids=line_pool.search(cr, uid,[('taxable_id','=',tabla),
+                                                        ('basic_fraction','<=',datos['field_399']),('excess_to','>=',datos['field_399'])])
+                    for linea_ in linea_ids:
+                        linea=line_pool.browse(cr, uid, linea_)
+                        excedente=base-linea.basic_fraction
+                        imp_sobre_excedente=excedente*linea.excess_fraction_percent/100.0
+                        imp_frac_basica=linea.basic_fraction_tax
+                        imp_renta_anual=round(imp_sobre_excedente,2)+imp_frac_basica
+                        datos['field_401'] = imp_renta_anual
+            self.write(cr, uid, ids, datos)
+
+    def crear_xls107(self, cr, uid, ids, context=None):
+        #archivo del formulario 107
+        xls_path = addons.get_module_resource('l10n_ec_sri2016_107','xls','sri2016_107.xls')
+        #image_path = addons.get_module_resource('l10n_ec_sri2016_107','xls','sri2016_logo.bmp')
+        rb = open_workbook(xls_path,formatting_info=True)
+        for formulario in self.browse(cr, uid, ids):
+                    #escritura de datos en el formulario de excel
+                    wb = copy(rb)
+                    ws = wb.get_sheet(0)
+                    
+                    #campo numero
+                    ws.write(0,26,"   No.   " + formulario.codigo)
+                    #ws.insert_bitmap(image_path, 0, 2)
+                    #campo 102
+                    anio = str(formulario.field_102)
+                    ws.write(3,14,anio[:1])
+                    ws.write(3,15,anio[1:2])
+                    ws.write(3,16,anio[2:3])
+                    ws.write(3,17,anio[3:4])
+                    #campo 103
+                    fecha = str(formulario.field_103)
+                    ws.write(4,25,fecha[:1])
+                    ws.write(4,26,fecha[1:2])
+                    ws.write(4,27,fecha[2:3])
+                    ws.write(4,28,fecha[3:4])
+                    ws.write(4,29,fecha[5:6])
+                    ws.write(4,31,fecha[6:7])
+                    ws.write(4,33,fecha[8:9])
+                    ws.write(4,34,fecha[9:10])
+                    #campo 106
+                    ws.write(7,15,formulario.field_106)
+                    #campo 105
+                    if formulario.field_105:
+                        ws.write(7,1,formulario.field_105[:1])
+                        ws.write(7,2,formulario.field_105[1:2])
+                        ws.write(7,3,formulario.field_105[2:3])
+                        ws.write(7,4,formulario.field_105[3:4])
+                        ws.write(7,5,formulario.field_105[4:5])
+                        ws.write(7,6,formulario.field_105[5:6])
+                        ws.write(7,7,formulario.field_105[6:7])
+                        ws.write(7,8,formulario.field_105[7:8])
+                        ws.write(7,9,formulario.field_105[8:9])
+                        ws.write(7,10,formulario.field_105[9:10])
+                    #campo 201
+                    ws.write(10,1,formulario.field_202.name)
+                    #campo 202
+                    ws.write(10,15,formulario.field_202.name_related)
+                    #campos liquidacion de impuestos
+                    ws.write(13,21,str("%0.2f" % abs(formulario.field_301)))
+                    ws.write(14,21,str("%0.2f" % abs(formulario.field_303)))
+                    ws.write(15,21,str("%0.2f" % abs(formulario.field_305)))
+                    ws.write(16,21,str("%0.2f" % abs(formulario.field_307)))
+                    ws.write(17,21,str("%0.2f" % abs(formulario.field_311)))
+                    ws.write(18,21,str("%0.2f" % abs(formulario.field_313)))
+                    ws.write(19,21,str("%0.2f" % abs(formulario.field_315)))
+                    ws.write(20,21,str("%0.2f" % abs(formulario.field_317)))
+                    ws.write(21,21,str("%0.2f" % abs(formulario.field_351)))
+                    ws.write(22,21,str("%0.2f" % abs(formulario.field_353)))
+                    ws.write(23,21,str("%0.2f" % abs(formulario.field_361)))
+                    ws.write(24,21,str("%0.2f" % abs(formulario.field_363)))
+                    ws.write(25,21,str("%0.2f" % abs(formulario.field_365)))
+                    ws.write(26,21,str("%0.2f" % abs(formulario.field_367)))
+                    ws.write(27,21,str("%0.2f" % abs(formulario.field_369)))
+                    ws.write(28,21,str("%0.2f" % abs(formulario.field_371)))
+                    ws.write(29,21,str("%0.2f" % abs(formulario.field_373)))
+                    ws.write(30,21,str("%0.2f" % abs(formulario.field_381)))
+                    ws.write(31,21,str("%0.2f" % abs(formulario.field_399)))
+                    ws.write(32,21,str("%0.2f" % abs(formulario.field_401)))
+                    ws.write(33,21,str("%0.2f" % abs(formulario.field_403)))
+                    ws.write(34,21,str("%0.2f" % abs(formulario.field_405)))
+                    ws.write(35,21,str("%0.2f" % abs(formulario.field_407)))
+                    ws.write(36,21,str("%0.2f" % abs(formulario.field_349)))
+                    
+                    #almacenamiento de datos del formulario en excel
+                    
+                    nombre = "formularios107/" + str(formulario.field_102) + " - " + formulario.field_202.name_related + ".xls"
+                    wb.save(nombre)
+                    out = open(nombre,"rb").read().encode("base64")
+                    self.write(cr, uid, formulario.id, {'archivo':out, 'name':str(formulario.field_102) + " - " + formulario.field_202.name_related + ".xls"})
+        return True
+
+    
+sri2016_107_individual()
+
+class hrRubro(osv.osv):
+    _name = 'sri2016.107.rubro'
+
+    _FIELDS_107 = [('field_301','301'),('field_303','303'),('field_305','305'),('field_307','307'),('field_311','311'),
+                   ('field_313','313'),('field_313','313'),('field_315','315'),('field_317','317'),
+                   ('field_351','351'),('field_353','353'),('field_361','361'),('field_363','363'),('field_365','365'),
+                   ('field_367','367'),('field_369','369'),('field_371','371'),('field_373','373'),('field_381','381'),
+                   ('field_403','403'),('field_405','405'),('field_407','407')]
+
+    _columns = {
+        'name':fields.char('Descripción', size=64),
+        'valor':fields.float('Valor', required=True),
+        'casillero':fields.selection(_FIELDS_107,'Casillero', required=True),
+        'employee_id':fields.many2one('hr.employee','Empleado', required=True, ondelete='cascade'),
+        'date':fields.date('Fecha', required=True),
+        }
+
+    _order = 'date desc, casillero asc'
+hrRubro()    
+
+class hrEmployeeSri2016_107(osv.osv):
+    _inherit = 'hr.employee'
+    _columns = {
+        'rubros_ids': fields.one2many('sri2016.107.rubro','employee_id','Lineas'),
+        }
+    
+hrEmployeeSri2016_107()
+

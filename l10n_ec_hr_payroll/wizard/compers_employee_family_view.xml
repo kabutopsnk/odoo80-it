@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+
+    <record id="view_wizard_compers_employee_family_view" model="ir.ui.view">
+      <field name="name">Actualizar Cargas Compers</field>
+      <field name="model">compers.employee.family</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+	<form string="Modificar Salario">	 
+	    <label colspan="4" string="Este Asistente le permite Actualizar las Cargas Familiares no existentes en Compers, desde odoo"/>
+	    <group col="4" colspan="4">
+	      <field name="name" colspan="4"/>
+	    </group>  
+	    <group col="4" colspan="4">
+	      <button icon="gtk-cancel" special="cancel" string="Cancelar" colspan="2"/>
+	      <button name="actualizar_compers" string="Actualizar" colspan="2" type="object" icon="gtk-execute"/>
+	    </group>
+	</form>
+      </field>
+    </record>
+
+     <record id="action_wizard_compers_employee_family" model="ir.actions.act_window">
+		<field name="name">Actualizar Cargas Compers</field>
+		<field name="res_model">compers.employee.family</field>
+		<field name="view_type">form</field>
+		<field name="view_mode">form</field>
+		<field name="target">new</field>
+      </record>
+
+    <menuitem parent="menu_hr_misc" id="menu_wizard_compers_employee_family" action="action_wizard_compers_employee_family"/>
+
+
+    </data>
+</openerp>

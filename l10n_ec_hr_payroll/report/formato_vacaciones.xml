@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+<data>
+<template id="formato_vacaciones">
+    <t t-call="report.html_container">
+        <t t-foreach="docs" t-as="o">
+            <t t-call="report.external_layout">
+                <p t-if="o.state=='validate'">
+                <div class="header"/>
+                <div class="page">
+                	<center>
+                    <table class="table table-condensed table-bordered" cellspacing="0" width="80%">
+                    <!--table cellspacing="0" width="80%"-->
+                    	<tr>
+                            <td width="100%" colspan="4" style="text-align:center;font-size:18px"><center><b>SOLICITUD, APROBACION Y ACEPTACION DE VACACIONES</b></center></td>
+                        </tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                    	<tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Fecha:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.date"/></td>
+                        </tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Cedula:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.employee_id.name"/></td>
+                        </tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Nombre:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.employee_id.name_related"/></td>
+                        </tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Empresa:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.employee_id.contract_id.company_id.name"/></td>
+                        </tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Cargo:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.employee_id.contract_id.job_id.name"/></td>
+                        </tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Departamento:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.employee_id.contract_id.department_id.name"/></td>
+                        </tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Solicito:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.number_of_days_temp"/> días de vacaciones</td>
+                        </tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Desde:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.date_from"/></td>
+                        </tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Hasta:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.date_to"/></td>
+                        </tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                        <tr>
+                            <td width="25%" style="text-align:right;font-size:10px"><strong>Correspondientes al periodo:</strong></td>
+                            <td width="75%" colspan="3" style="text-align:left;font-size:10px"><span t-field="o.employee_holidays.date_start"/> - <span t-field="o.employee_holidays.date_end"/></td>
+                        </tr>
+                        <tr>
+                            <td width="50%" colspan="2" style="text-align:center;font-size:10px"><br/><br/><strong>____________________<br/>Solicitante</strong></td>
+                            <td width="50%" colspan="2" style="text-align:center;font-size:10px"><br/><br/><strong>____________________<br/>Jefe Inmediato</strong></td>
+                        </tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                        <tr>
+                            <td width="100%" colspan="4" style="text-align:center;font-size:10px">
+                            	<center>
+                            		<table border="1" cellspacing="0" width="100%">
+                            			<tr style="vertical-align:top;">
+											<th colspan="5" style="text-align:center;">DETALLE DE VACACIONES</th>
+										</tr>
+                            			<tr style="vertical-align:top;">
+											<th width="40%" style="text-align:center;">DESCRIPCION</th>
+											<th width="15%" style="text-align:center;">TOTAL</th>
+											<th width="15%" style="text-align:center;">UTILIZADAS</th>
+											<th width="15%" style="text-align:center;">SOLICITADAS</th>
+											<th width="15%" style="text-align:center;">PENDIENTES</th>
+										</tr>
+										<tr style="vertical-align:top;">
+											<th width="40%" style="text-align:center;">Total de dias de vacaciones anuales</th>
+											<th width="15%" style="text-align:center;"><span t-esc="o.employee_holidays.days_normal + o.employee_holidays.days_extra"/></th>
+											<th width="15%" style="text-align:center;"><span t-esc="o.employee_holidays.days_normal_used + o.employee_holidays.days_extra_used + o.employee_holidays.days_s_normal_used + o.employee_holidays.days_s_extra_used - o.number_of_days_temp"/></th>
+											<th width="15%" style="text-align:center;"><span t-field="o.number_of_days_temp"/></th>
+											<th width="15%" style="text-align:center;"><span t-esc="(o.employee_holidays.days_normal_avai + o.employee_holidays.days_extra_avai)"/></th>
+										</tr>
+                            		</table>
+                            	</center>
+                            </td>
+                        </tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                        <tr>
+                            <td width="100%" colspan="4" style="text-align:left;font-size:10px"><b>AUTORIZACION</b></td>
+                        </tr>
+                        <tr>
+                            <td width="100%" colspan="4" style="text-align:left;font-size:10px">Autorizamos a <b><span t-field="o.employee_id.name_related"/></b>
+                            <br/>para que haga uso de sus <b><span t-field="o.number_of_days_temp"/></b> dias de vacacion a los que tiene derecho de acuerdo a las disposiciones del Codigo de Trabajo.
+                            <br/>Las vacaciones corresponden al periodo <b><span t-field="o.employee_holidays.date_start"/> - <span t-field="o.employee_holidays.date_end"/></b> y hara uso de las mismas desde el <b><span t-field="o.date_from"/></b>   hasta el  <b><span t-field="o.date_to"/></b>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width="50%" colspan="2" style="text-align:center;font-size:10px"><br/><br/><strong>____________________<br/>Gerente</strong></td>
+                            <td width="50%" colspan="2" style="text-align:center;font-size:10px"><br/><br/><strong>____________________<br/>Jefe de Personal</strong></td>
+                        </tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                        <tr><td colspan="4"> <br/> </td></tr>
+                        <tr>
+                            <td width="100%" colspan="4" style="text-align:left;font-size:10px"><b>ACEPTACION</b></td>
+                        </tr>
+                        <tr>
+                            <td width="100%" colspan="4" style="text-align:left;font-size:10px">Yo <b><span t-field="o.employee_id.name_related"/></b>
+                            <br/>dejo constancia que he hecho uso de mis <b><span t-field="o.number_of_days_temp"/></b> dias de vacacion, desde el <b><span t-field="o.date_from"/></b>   hasta el  <b><span t-field="o.date_to"/></b>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width="50%" colspan="2" style="text-align:center;font-size:10px"><br/><br/><strong>____________________<br/>Firma de Aceptacion</strong></td>
+                            <td width="50%" colspan="2" style="text-align:center;font-size:10px"></td>
+                        </tr>
+                    </table>
+                    </center>
+                </div>
+                <div class="footer"/>
+                </p>
+            </t>
+        </t>
+    </t>
+</template>
+</data>
+</openerp>

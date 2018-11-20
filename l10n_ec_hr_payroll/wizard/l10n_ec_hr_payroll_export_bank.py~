@@ -1,0 +1,207 @@
+# -*- coding: utf-8 -*-
+##############################################################################
+#
+#    HHRR Module
+#    Copyright (C) 2009 GnuThink Software  All Rights Reserved
+#    info@gnuthink.com
+#    $Id$
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+##############################################################################
+
+from osv import osv, fields
+import base64
+
+#import time
+#import pooler
+#import StringIO
+#import netsvc
+#from time import strftime
+#from string import upper
+
+class e_cm(osv.osv_memory):
+    _name = 'e.cm'
+    _description = 'Exportar'
+
+
+    _columns = {
+        'month':fields.many2one('hr.contract.wage.type.period.line','Periodo'),
+        'archivo1':fields.binary('Archivo',readonly=True),
+        'archivo2':fields.binary('Archivo',readonly=True),
+        'name1':fields.char('Nombre Archivo', size=32),
+        'name2':fields.char('Nombre Archivo', size=32),
+        'bank':fields.selection([('g','Guayaquil')],
+                                "Banco",help="Este es el formato del banco que se utiliza para la generacion del archivo cash"),
+        #'validado':fields.boolean('Solo Validados'),
+        'compania': fields.selection([('colineal','Colineal'),('carpinteria','Carpinteria')],'Compañía'),
+        'rol': fields.selection([('mensual','Mensual'),('quincenal','Quincenal')],'Rol'),
+    }
+
+    def exportar_archivo(self, cr, uid, ids, context):
+        if context is None:
+            context = {}
+        data = self.read(cr, uid, ids)[0]
+        period_id = data['month']
+        #validado=data['validado']
+        payroll_obj = self.pool.get('hr.payslip')
+        quincena_obj = self.pool.get('hr.payroll.advance.line')
+        if data['bank']=='g' and data['rol']=='mensual': #archivo mensual del banco de guayaquil
+	       #GENERACION DE ARCHIVO DE CUENTAS VIRTUALES
+            roles = payroll_obj.search(cr, uid, [('period_hr_id','=', period_id)])
+            total=0
+            fecha=strftime('%Y-%m-%d')
+            fechau=fecha[0:4]+fecha[5:7]+fecha[8:10]
+            n_registros=0
+            
+            total_pagar=0
+            for rol_ in roles:
+                rol=payroll_obj.browse(cr, uid, rol_)
+                tipo_cta=rol.employee_id.bank_account_id.type
+                if tipo_cta=='vir':
+                    if rol.total_pay>0:
+                        total+=rol.total_pay
+                        n_registros+=1
+            n_reg="%05d"%n_registros
+            str_val=(("%.2f"%total).replace(".",'')).rjust(15,'0')
+            cabecera=''
+            codigo_empresa=''
+            if data['compania']=='colineal':
+                cabecera="CNQ0000450359COLINEAL CORPORATION CIA LTDA         C"+str_val+fechau+n_reg+"\n"
+                codigo_empresa='NQ'
+                codigo_empresa2='039'
+            else:
+                cabecera="C2R0035001220CARPINTERIA Y TAPICERIA CTIN CIA LTDA C"+str_val+fechau+n_reg+"\n"
+                codigo_empresa='2R'
+                codigo_empresa2='AVR'
+            buf = StringIO.StringIO()
+            buf.write(upper(cabecera))
+            for rol_ in roles:
+                rol=payroll_obj.browse(cr, uid, rol_)
+                tipo_cta=rol.employee_id.bank_account_id.type
+                if tipo_cta=='vir' and rol.total_pay>0:
+                    cedula=rol.employee_id.ci
+                    nombre_empleado=rol.employee_id.apellido+' '+rol.employee_id.nombre+"                    ."
+                    monto=rol.total_pay
+                    monto_str=(("%.2f"%monto).replace(".",'')).rjust(15,'0')
+                    tipo='C' #Compania - Empleado
+                    nombre_empleado = nombre_empleado[:17]
+                    final_telefono = '                                            000000000'
+                    detalle="D" + codigo_empresa +cedula+nombre_empleado+tipo+"                    "+"N"+monto_str+final_telefono+"\n"
+                    buf.write(upper(detalle))   
+            out = base64.encodestring(buf.getvalue())
+            buf.close()
+            name = "%s%s%s%s.TXT" % ("ROL", strftime('%Y%m%d'),codigo_empresa,"_01")
+            self.write(cr, uid, ids, {'archivo1': out, 'name1': name})
+
+	       #GENERACION DE ARCHIVO DE CUENTAS AHORROS - CORRIENTES
+            buf2 = StringIO.StringIO()
+            for rol_ in roles:
+                rol=payroll_obj.browse(cr, uid, rol_)
+                tipo_cta=rol.employee_id.bank_account_id.type
+                tipo='V'
+                if tipo_cta=='aho':
+                    tipo='A'
+                elif tipo_cta=='cte':
+                    tipo='C'
+                if tipo!='V' and rol.total_pay>0:
+                    numero_cta=rol.employee_id.bank_account_id.acc_number
+                    cuenta_str=numero_cta.rjust(10,'0')
+                    monto=rol.total_pay
+                    if monto>0:
+                        monto_str=(("%.2f"%monto).replace(".",'')).rjust(15,'0')
+                        detalle=tipo+cuenta_str+monto_str+"XXY01"+ "                                      " + codigo_empresa2 + "                              " + "0000000000" + "\n"
+                        buf2.write(upper(detalle))
+            out2 = base64.encodestring(buf2.getvalue())
+            buf2.close()
+            name2 = "%s%s%s%s.TXT" % ("NCR", strftime('%Y%m%d'),codigo_empresa2,"_01")
+            self.write(cr, uid, ids, {'archivo1': out, 'name1': name, 'archivo2': out2, 'name2': name2})
+            
+        if data['bank']=='g' and data['rol']=='quincenal': #archivo quincenal del banco de guayaquil
+            #GENERACION DE ARCHIVO DE CUENTAS VIRTUALES
+            roles = quincena_obj.search(cr, uid, [('period_id','=', period_id)])
+            total=0
+            fecha=strftime('%Y-%m-%d')
+            fechau=fecha[0:4]+fecha[5:7]+fecha[8:10]
+            n_registros=0
+            
+            total_pagar=0
+            for rol_ in roles:
+                rol=quincena_obj.browse(cr, uid, rol_)
+                tipo_cta=rol.employee_id.bank_account_id.type
+                if tipo_cta=='vir':
+                    if rol.total>0:
+                        total+=rol.total
+                        n_registros+=1
+            n_reg="%05d"%n_registros
+            str_val=(("%.2f"%total).replace(".",'')).rjust(15,'0')
+            cabecera=''
+            codigo_empresa=''
+            if data['compania']=='colineal':
+                cabecera="CNQ0000450359COLINEAL CORPORATION CIA LTDA         C"+str_val+fechau+n_reg+"\n"
+                codigo_empresa='NQ'
+                codigo_empresa2='039'
+            else:
+                cabecera="C2R0035001220LA TAPICERIA TIN CIA LTDA             C"+str_val+fechau+n_reg+"\n"
+                codigo_empresa='2R'
+                codigo_empresa2='AVR'
+            buf = StringIO.StringIO()
+            buf.write(upper(cabecera))
+            for rol_ in roles:
+                rol=quincena_obj.browse(cr, uid, rol_)
+                tipo_cta=rol.employee_id.bank_account_id.type
+                if tipo_cta=='vir' and rol.total>0:
+                    cedula=rol.employee_id.ci
+                    nombre_empleado=rol.employee_id.apellido+' '+rol.employee_id.nombre+"                    ."
+                    monto=rol.total
+                    monto_str=(("%.2f"%monto).replace(".",'')).rjust(15,'0')
+                    tipo='C' #Compania - Empleado
+                    nombre_empleado = nombre_empleado[:17]
+                    final_telefono = '                                            000000000'
+                    detalle="D" + codigo_empresa +cedula+nombre_empleado+tipo+"                    "+"N"+monto_str+final_telefono+"\n"
+                    buf.write(upper(detalle))   
+            out = base64.encodestring(buf.getvalue())
+            buf.close()
+            name = "%s%s%s%s.TXT" % ("ROL", strftime('%Y%m%d'),codigo_empresa,"_01")
+            self.write(cr, uid, ids, {'archivo1': out, 'name1': name})
+
+        #GENERACION DE ARCHIVO DE CUENTAS AHORROS - CORRIENTES
+            buf2 = StringIO.StringIO()
+            for rol_ in roles:
+                rol=quincena_obj.browse(cr, uid, rol_)
+                tipo_cta=rol.employee_id.bank_account_id.type
+                tipo='V'
+                if tipo_cta=='aho':
+                    tipo='A'
+                elif tipo_cta=='cte':
+                    tipo='C'
+                if tipo!='V' and rol.total>0:
+                    numero_cta=rol.employee_id.bank_account_id.acc_number
+                    cuenta_str=numero_cta.rjust(10,'0')
+                    monto=rol.total
+                    monto_str=(("%.2f"%monto).replace(".",'')).rjust(15,'0')
+                    detalle=tipo+cuenta_str+monto_str+"XXY01"+ "                                      " + codigo_empresa2 + "                              " + "0000000000" + "\n"
+                    buf2.write(upper(detalle))
+            out2 = base64.encodestring(buf2.getvalue())
+            buf2.close()
+            name2 = "%s%s%s%s.TXT" % ("NCR", strftime('%Y%m%d'),codigo_empresa2,"_01")
+            self.write(cr, uid, ids, {'archivo1': out, 'name1': name, 'archivo2': out2, 'name2': name2})
+
+
+    _defaults = {
+        #'bank':'p',
+        'rol':'mensual',
+    }
+
+e_cm()

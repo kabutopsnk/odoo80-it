@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<openerp>
+    <!--data noupdate="1"-->
+    <data>
+
+        <!-- Casual leave -->
+        <record model="hr.holidays.status" id="hr_holidays.holiday_status_cl">
+            <field name="name">Vacaciones</field>
+            <field name="code">VAC</field>
+            <field name="color_name">blue</field>
+        </record>
+
+        <!-- Sick leave -->
+        <record model="hr.holidays.status" id="hr_holidays.holiday_status_sl">
+            <field name="name">Enfermedad</field>
+            <field name="code">ENF</field>
+            <field name="limit">True</field>
+            <field name="color_name">lightgreen</field>
+        </record>
+
+        <!-- Compensatory Days -->
+        <record model="hr.holidays.status" id="hr_holidays.holiday_status_comp">
+            <field name="name">Permisos</field>
+            <field name="code">PERM</field>
+            <field name="limit">True</field>
+            <field name="color_name">lavender</field>
+        </record>
+
+        <!--Unpaid Leave -->
+        <record model="hr.holidays.status" id="hr_holidays.holiday_status_unpaid">
+            <field name="name">Faltas</field>
+            <field name="code">FAL</field>
+            <field name="limit">True</field>
+            <field name="color_name">red</field>
+        </record>
+
+        <!-- Maternidad -->
+        <record model="hr.holidays.status" id="holiday_status_mat">
+            <field name="name">Maternidad</field>
+            <field name="code">MAT</field>
+            <field name="limit">True</field>
+            <field name="color_name">lightyellow</field>
+        </record>
+
+
+    </data>
+</openerp>

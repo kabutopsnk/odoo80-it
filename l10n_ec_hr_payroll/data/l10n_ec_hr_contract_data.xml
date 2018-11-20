@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data noupdate="1">
+    <!--data-->
+
+        <!-- Contract Types -->
+        <!--record id="hr_contract.hr_contract_type_emp" model="hr.contract.type">
+            <field name="name">Empleado</field>
+        </record>
+
+        <record id="hr_contract.hr_contract_type_wrkr" model="hr.contract.type">
+            <field name="name">Trabajador</field>
+        </record>
+
+        <record id="hr_contract.hr_contract_type_sub" model="hr.contract.type">
+            <field name="name">Facturación de Servicios</field>
+        </record-->
+
+    </data>
+</openerp>
